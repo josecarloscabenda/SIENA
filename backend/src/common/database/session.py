@@ -1,22 +1,36 @@
+"""Database session management."""
+
+import os
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
 from src.common.database.base import Base  # noqa: F401
 
-# Engine e session factory são configurados no arranque da aplicação
-_engine = None
-_session_factory = None
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+psycopg://siena:siena@localhost:5432/siena",
+)
 
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=os.getenv("APP_ENV") == "development",
+    pool_size=20,
+    max_overflow=10,
+)
 
-def init_db(database_url: str) -> None:
-    global _engine, _session_factory
-    _engine = create_async_engine(database_url, echo=False)
-    _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
+async_session_factory = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    if _session_factory is None:
-        raise RuntimeError("Database not initialized. Call init_db() first.")
-    async with _session_factory() as session:
-        yield session
+    """FastAPI dependency that provides a database session per request."""
+    async with async_session_factory() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise

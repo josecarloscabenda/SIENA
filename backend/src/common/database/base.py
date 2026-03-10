@@ -56,3 +56,9 @@ class BaseModel(Base, TimestampMixin, SoftDeleteMixin):
         primary_key=True,
         default=uuid.uuid4,
     )
+
+
+class TenantBaseModel(BaseModel, TenantMixin):
+    """Base para tabelas de negócio com tenant isolation."""
+
+    __abstract__ = True
