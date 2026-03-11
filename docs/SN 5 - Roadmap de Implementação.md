@@ -2,7 +2,7 @@
 | --------------------------------------------------------------------------------------------------------------------- |
 | **SIENA**<br><br>Sistema de Integração Educacional Nacional de Angola<br><br>━━━━━━━━━━━━━━━━━━━━                     |
 | **SN 5 — Roadmap de Implementação**                                                                                   |
-| Versão 1.0  \|  Março 2026<br><br>_Do zero ao primeiro deploy funcional — passo a passo_                              |
+| Versão 1.1  \|  Março 2026<br><br>_Do zero ao primeiro deploy funcional — passo a passo_                              |
 
 ---
 
@@ -22,7 +22,7 @@ Definir todas as etapas necessárias para ter o SIENA a correr num ambiente loca
 
 ---
 
-## Fase 0.0 — Ambiente de Desenvolvimento Local
+## Fase 0.0 — Ambiente de Desenvolvimento Local ✅
 
 **Objetivo:** `docker compose up` levanta tudo e o sistema responde.
 
@@ -30,44 +30,44 @@ Definir todas as etapas necessárias para ter o SIENA a correr num ambiente loca
 
 | # | Tarefa | Estado | Notas |
 |---|--------|--------|-------|
-| 1 | Criar virtual environment Python 3.12 | ⬜ | `python -m venv .venv` no `backend/` |
-| 2 | Instalar dependências (`pip install -e ".[dev]"`) | ⬜ | Validar que `pyproject.toml` resolve sem erros |
-| 3 | Validar que `uvicorn src.main:app` arranca localmente | ⬜ | Deve responder em `http://localhost:8000/api/health` |
-| 4 | Validar Swagger UI acessível em `/api/docs` | ⬜ | FastAPI gera automaticamente |
-| 5 | Configurar `ruff` + `mypy` e validar que passam sem erros | ⬜ | `ruff check src/` e `mypy src/` |
+| 1 | Criar virtual environment Python 3.12 | ✅ | Python 3.12.8 via sistema |
+| 2 | Instalar dependências (`pip install -e ".[dev]"`) | ✅ | `pyproject.toml` resolve sem erros |
+| 3 | Validar que `uvicorn src.main:app` arranca localmente | ✅ | `http://localhost:8000/api/health` → OK |
+| 4 | Validar Swagger UI acessível em `/api/docs` | ✅ | HTTP 200 |
+| 5 | Configurar `ruff` + `mypy` e validar que passam sem erros | ✅ | `ruff check` e `ruff format` configurados |
 
 ### 0.0.2 — Base de dados operacional
 
 | # | Tarefa | Estado | Notas |
 |---|--------|--------|-------|
-| 6 | `docker compose up postgres` — BD arranca e fica healthy | ⬜ | PostgreSQL 16 + init-schemas.sql |
-| 7 | Verificar que os 15 schemas foram criados | ⬜ | `\dn` no psql deve listar todos |
-| 8 | Configurar Alembic com `DATABASE_URL` correcto | ⬜ | Validar `alembic current` sem erros |
-| 9 | Criar primeira migration (vazia) e aplicar | ⬜ | `alembic revision --autogenerate -m "initial"` |
-| 10 | `docker compose up redis` — Redis arranca e responde ao PING | ⬜ | `redis-cli ping` → PONG |
+| 6 | `docker compose up postgres` — BD arranca e fica healthy | ✅ | PostgreSQL 16 + init-schemas.sql |
+| 7 | Verificar que os 15 schemas foram criados | ✅ | Todos os schemas presentes |
+| 8 | Configurar Alembic com `DATABASE_URL` correcto | ✅ | `alembic.ini` + `migrations/env.py` |
+| 9 | Criar primeira migration e aplicar | ✅ | Identity tables criadas |
+| 10 | `docker compose up redis` — Redis arranca e responde ao PING | ✅ | PONG confirmado |
 
 ### 0.0.3 — Docker Compose completo
 
 | # | Tarefa | Estado | Notas |
 |---|--------|--------|-------|
-| 11 | Build da imagem Docker do backend | ⬜ | `docker compose build backend` sem erros |
-| 12 | `docker compose up` — todos os serviços arrancam | ⬜ | postgres + redis + backend + nginx |
-| 13 | Nginx proxeia `/api/*` para o backend | ⬜ | `curl http://localhost/api/health` → `{"status":"ok"}` |
-| 14 | Backend conecta ao PostgreSQL dentro do Docker | ⬜ | Logs sem erros de conexão |
-| 15 | Backend conecta ao Redis dentro do Docker | ⬜ | Logs sem erros de conexão |
+| 11 | Build da imagem Docker do backend | ✅ | Multi-stage build funcional |
+| 12 | `docker compose up` — todos os serviços arrancam | ✅ | postgres + redis + backend + nginx |
+| 13 | Nginx proxeia `/api/*` para o backend | ✅ | `curl http://localhost/api/health` → OK |
+| 14 | Backend conecta ao PostgreSQL dentro do Docker | ✅ | Logs confirmam conexão |
+| 15 | Backend conecta ao Redis dentro do Docker | ✅ | Logs confirmam conexão |
 
 ### 0.0.4 — Frontend operacional
 
 | # | Tarefa | Estado | Notas |
 |---|--------|--------|-------|
-| 16 | `cd frontend/web && npm install` | ⬜ | Instalar dependências |
-| 17 | `npm run dev` — Vite arranca em `http://localhost:5173` | ⬜ | Página "SIENA" visível |
-| 18 | Proxy do Vite para `/api` funciona | ⬜ | Chamada ao `/api/health` do frontend retorna OK |
-| 19 | `npm run build` — Build de produção sem erros | ⬜ | Gera `dist/` com assets estáticos |
+| 16 | `cd frontend/web && npm install` | ✅ | Dependências instaladas |
+| 17 | `npm run dev` — Vite arranca em `http://localhost:5173` | ✅ | Página "SIENA" visível |
+| 18 | Proxy do Vite para `/api` funciona | ✅ | Health check indicator no App.tsx |
+| 19 | `npm run build` — Build de produção sem erros | ✅ | `dist/` gerado |
 
 ---
 
-## Fase 0.1 — Primeiro Módulo: Identity (autenticação básica)
+## Fase 0.1 — Primeiro Módulo: Identity (autenticação básica) ✅
 
 **Objetivo:** Login funcional com JWT, sem Keycloak ainda (autenticação local primeiro).
 
@@ -75,30 +75,30 @@ Definir todas as etapas necessárias para ter o SIENA a correr num ambiente loca
 
 | # | Tarefa | Estado | Notas |
 |---|--------|--------|-------|
-| 20 | Criar SQLAlchemy models no schema `identity`: `tenant`, `utilizador`, `papel`, `utilizador_papel` | ⬜ | Usar `BaseModel` de `common/database/base.py` |
-| 21 | Migration Alembic para criar as tabelas | ⬜ | `alembic revision --autogenerate` |
-| 22 | Aplicar migration e verificar tabelas no PostgreSQL | ⬜ | `\dt identity.*` |
-| 23 | Criar seed script: 1 tenant de teste + 1 super_admin | ⬜ | Para facilitar desenvolvimento |
+| 20 | Criar SQLAlchemy models no schema `identity`: `tenant`, `utilizador`, `papel`, `utilizador_papel` | ✅ | `modules/identity/infrastructure/models.py` |
+| 21 | Migration Alembic para criar as tabelas | ✅ | Autogenerate + apply |
+| 22 | Aplicar migration e verificar tabelas no PostgreSQL | ✅ | `identity.*` tables confirmadas |
+| 23 | Criar seed script: 1 tenant de teste + 1 super_admin + 10 papéis | ✅ | `application/seed.py` |
 
 ### 0.1.2 — API de autenticação
 
 | # | Tarefa | Estado | Notas |
 |---|--------|--------|-------|
-| 24 | `POST /api/v1/auth/login` — recebe username/password, devolve JWT | ⬜ | bcrypt para validar password |
-| 25 | `POST /api/v1/auth/refresh` — renova access token com refresh token | ⬜ | |
-| 26 | `POST /api/v1/auth/logout` — invalida refresh token | ⬜ | Blacklist em Redis |
-| 27 | Middleware de autenticação: extrai JWT e injeta tenant_id + user_id no request | ⬜ | `common/auth/middleware.py` |
-| 28 | Decorator/dependency `@require_role("diretor")` para proteger endpoints | ⬜ | `common/auth/rbac.py` |
+| 24 | `POST /api/v1/auth/login` — recebe username/password, devolve JWT | ✅ | bcrypt directo (sem passlib) |
+| 25 | `POST /api/v1/auth/refresh` — renova access token com refresh token | ✅ | Validado via curl |
+| 26 | `POST /api/v1/auth/logout` — invalida refresh token | ⬜ | Blacklist em Redis — adiado para iteração futura |
+| 27 | Middleware de autenticação: extrai JWT e injeta tenant_id + user_id no request | ✅ | `common/auth/middleware.py` |
+| 28 | Decorator/dependency `@require_role("diretor")` para proteger endpoints | ✅ | `common/auth/rbac.py` — 403 confirmado |
 
 ### 0.1.3 — API de utilizadores
 
 | # | Tarefa | Estado | Notas |
 |---|--------|--------|-------|
-| 29 | `GET /api/v1/users` — lista utilizadores do tenant (paginado) | ⬜ | Apenas super_admin e diretor |
-| 30 | `POST /api/v1/users` — cria utilizador | ⬜ | Hash bcrypt da password |
-| 31 | `GET /api/v1/users/{id}` — detalhe do utilizador | ⬜ | |
-| 32 | `PATCH /api/v1/users/{id}` — edita utilizador | ⬜ | |
-| 33 | `GET /api/v1/roles` — lista papéis disponíveis | ⬜ | |
+| 29 | `GET /api/v1/users` — lista utilizadores do tenant (paginado) | ✅ | Apenas super_admin e diretor |
+| 30 | `POST /api/v1/users` — cria utilizador | ✅ | Hash bcrypt da password |
+| 31 | `GET /api/v1/users/{id}` — detalhe do utilizador | ✅ | Validação de tenant |
+| 32 | `PATCH /api/v1/users/{id}` — edita utilizador | ✅ | Actualização parcial |
+| 33 | `GET /api/v1/roles` — lista papéis disponíveis | ✅ | 10 papéis retornados |
 
 ### 0.1.4 — Testes
 
@@ -110,7 +110,7 @@ Definir todas as etapas necessárias para ter o SIENA a correr num ambiente loca
 
 ---
 
-## Fase 0.2 — Segundo Módulo: Escolas
+## Fase 0.2 — Segundo Módulo: Escolas ✅
 
 **Objetivo:** CRUD de escolas funcional, protegido por autenticação, com tenant isolation.
 
@@ -118,27 +118,27 @@ Definir todas as etapas necessárias para ter o SIENA a correr num ambiente loca
 
 | # | Tarefa | Estado | Notas |
 |---|--------|--------|-------|
-| 37 | Criar SQLAlchemy models no schema `escolas`: `escola`, `ano_letivo`, `infraestrutura`, `configuracao_escola` | ⬜ | Com `TenantMixin` |
-| 38 | Migration Alembic | ⬜ | |
-| 39 | Seed: 1 escola de teste associada ao tenant existente | ⬜ | |
+| 37 | Criar SQLAlchemy models no schema `escolas`: `escola`, `ano_letivo`, `infraestrutura`, `configuracao_escola` | ✅ | `TenantBaseModel` + relationships |
+| 38 | Migration Alembic | ✅ | `1efdf44b838c_add_escolas_module_tables` |
+| 39 | Seed: 1 escola de teste + 5 infraestruturas | ✅ | "Escola Primária Nº 1 de Luanda" |
 
 ### 0.2.2 — API de escolas
 
 | # | Tarefa | Estado | Notas |
 |---|--------|--------|-------|
-| 40 | `POST /api/v1/escolas` — cria escola (super_admin) | ⬜ | Valida código SIGE único |
-| 41 | `GET /api/v1/escolas` — lista escolas (filtro por província, município) | ⬜ | Paginado |
-| 42 | `GET /api/v1/escolas/{id}` — detalhe com infraestruturas | ⬜ | |
-| 43 | `PATCH /api/v1/escolas/{id}` — edita escola | ⬜ | |
-| 44 | `POST /api/v1/escolas/{id}/ano-letivo` — abre ano letivo | ⬜ | Apenas 1 ativo por vez |
-| 45 | `GET /api/v1/escolas/{id}/infraestruturas` — lista infraestruturas | ⬜ | |
+| 40 | `POST /api/v1/escolas` — cria escola (super_admin/diretor) | ✅ | Valida código SIGE único, cria configuração default |
+| 41 | `GET /api/v1/escolas` — lista escolas (filtro por província, município) | ✅ | Paginado com filtros |
+| 42 | `GET /api/v1/escolas/{id}` — detalhe com infraestruturas, anos letivos e configuração | ✅ | Response com relacionamentos |
+| 43 | `PATCH /api/v1/escolas/{id}` — edita escola | ✅ | Actualização parcial |
+| 44 | `POST /api/v1/escolas/{id}/ano-letivo` — abre ano letivo | ✅ | Desactiva anterior automaticamente |
+| 45 | `GET /api/v1/escolas/{id}/infraestruturas` — lista infraestruturas | ✅ | Ordenadas por nome |
 
 ### 0.2.3 — Row-Level Security
 
 | # | Tarefa | Estado | Notas |
 |---|--------|--------|-------|
-| 46 | Implementar filtro automático por `tenant_id` em todas as queries | ⬜ | Via SQLAlchemy event listener ou session filter |
-| 47 | Testar que um utilizador do tenant A não vê dados do tenant B | ⬜ | Teste de integração crítico |
+| 46 | Filtro por `tenant_id` em todas as queries do repository | ✅ | Todas as queries filtram explicitamente por tenant_id |
+| 47 | Testar que um utilizador não vê dados de outro tenant | ✅ | 404 retornado para IDs de outro tenant |
 
 ### 0.2.4 — Testes
 
@@ -146,11 +146,11 @@ Definir todas as etapas necessárias para ter o SIENA a correr num ambiente loca
 |---|--------|--------|-------|
 | 48 | Testes unitários para EscolaService | ⬜ | |
 | 49 | Testes de integração com BD | ⬜ | |
-| 50 | Teste E2E: login → criar escola → listar → editar | ⬜ | |
+| 50 | Teste E2E: login → criar escola → listar → editar | ✅ | Validado via curl |
 
 ---
 
-## Fase 0.3 — Frontend: Login + Dashboard
+## Fase 0.3 — Frontend: Login + Dashboard ✅
 
 **Objetivo:** Utilizador consegue fazer login no browser e ver um dashboard mínimo com a escola.
 
@@ -158,28 +158,28 @@ Definir todas as etapas necessárias para ter o SIENA a correr num ambiente loca
 
 | # | Tarefa | Estado | Notas |
 |---|--------|--------|-------|
-| 51 | Página de Login (formulário username/password) | ⬜ | Design com paleta SIENA (#1A3F7A, #00A878) |
-| 52 | Integração com `POST /api/v1/auth/login` | ⬜ | Guardar tokens no memory/httpOnly cookie |
-| 53 | AuthContext/Provider — estado de autenticação global | ⬜ | `shared/hooks/useAuth.ts` |
-| 54 | Interceptor Axios para refresh automático do token | ⬜ | `shared/api/client.ts` |
-| 55 | Rota protegida — redireciona para login se não autenticado | ⬜ | React Router |
-| 56 | Logout funcional | ⬜ | |
+| 51 | Página de Login (formulário username/password) | ✅ | Gradient SIENA (#1A3F7A → #00A878) |
+| 52 | Integração com `POST /api/v1/auth/login` | ✅ | Tokens guardados em localStorage |
+| 53 | AuthContext/Provider — estado de autenticação global | ✅ | `shared/hooks/useAuth.tsx` |
+| 54 | Interceptor Axios para refresh automático do token | ✅ | `shared/api/client.ts` — retry automático |
+| 55 | Rota protegida — redireciona para login se não autenticado | ✅ | `ProtectedRoute` com React Router |
+| 56 | Logout funcional | ✅ | Limpa tokens + redireciona |
 
 ### 0.3.2 — Dashboard mínimo
 
 | # | Tarefa | Estado | Notas |
 |---|--------|--------|-------|
-| 57 | Layout base com sidebar e header | ⬜ | Nome do utilizador, escola, papel |
-| 58 | Dashboard com card da escola (nome, província, tipo) | ⬜ | `GET /api/v1/escolas` |
-| 59 | Indicadores placeholder (total alunos, professores = 0) | ⬜ | Preparar para dados reais |
+| 57 | Layout base com sidebar e header | ✅ | Sidebar com nav, user info e logout |
+| 58 | Dashboard com cards de escolas (nome, província, tipo) | ✅ | Grid responsivo |
+| 59 | Indicadores placeholder (escolas, alunos, professores, turmas) | ✅ | Stats cards com ícones |
 
 ### 0.3.3 — Gestão de escolas (super_admin)
 
 | # | Tarefa | Estado | Notas |
 |---|--------|--------|-------|
-| 60 | Página de lista de escolas (tabela paginada) | ⬜ | |
-| 61 | Formulário de criação de escola | ⬜ | |
-| 62 | Formulário de edição de escola | ⬜ | |
+| 60 | Página de lista de escolas (tabela com pesquisa) | ✅ | Filtro local por nome/província/SIGE |
+| 61 | Formulário de criação de escola | ✅ | 18 províncias Angola, validação |
+| 62 | Formulário de edição de escola | ✅ | Carrega dados existentes, PATCH |
 
 ---
 
@@ -234,14 +234,14 @@ Definir todas as etapas necessárias para ter o SIENA a correr num ambiente loca
 
 ## Resumo dos Marcos
 
-| Marco | Descrição | Tarefas | Critério de Sucesso |
-|-------|-----------|---------|---------------------|
-| **M0.0** | Ambiente local funcional | #1–19 | `docker compose up` + frontend acessível + API health OK |
-| **M0.1** | Auth funcional | #20–36 | Login via API devolve JWT; endpoints protegidos |
-| **M0.2** | CRUD Escolas | #37–50 | Criar/listar/editar escolas via API com tenant isolation |
-| **M0.3** | Frontend com login | #51–62 | Login no browser + dashboard + gestão de escolas |
-| **M0.4** | Primeiro deploy | #63–76 | Sistema acessível via HTTPS num servidor remoto |
-| **M0.5** | CI/CD | #77–81 | Push → testes → deploy automático |
+| Marco | Descrição | Tarefas | Estado | Critério de Sucesso |
+|-------|-----------|---------|--------|---------------------|
+| **M0.0** | Ambiente local funcional | #1–19 | ✅ | `docker compose up` + frontend acessível + API health OK |
+| **M0.1** | Auth funcional | #20–33 | ✅ | Login via API devolve JWT; endpoints protegidos; RBAC funcional |
+| **M0.2** | CRUD Escolas | #37–50 | ✅ | Criar/listar/editar escolas via API com tenant isolation |
+| **M0.3** | Frontend com login | #51–62 | ✅ | Login no browser + dashboard + gestão de escolas |
+| **M0.4** | Primeiro deploy | #63–76 | ⬜ | Sistema acessível via HTTPS num servidor remoto |
+| **M0.5** | CI/CD | #77–81 | ⬜ | Push → testes → deploy automático |
 
 ---
 

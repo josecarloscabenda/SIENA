@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/pages/dashboard.tsx","./src/pages/escolaform.tsx","./src/pages/escolas.tsx","./src/pages/login.tsx","./src/pages/users.tsx","./src/shared/api/client.ts","./src/shared/api/types.ts","./src/shared/components/layout.tsx","./src/shared/components/protectedroute.tsx","./src/shared/hooks/useauth.tsx"],"version":"5.9.3"}

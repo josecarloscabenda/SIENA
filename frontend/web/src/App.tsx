@@ -1,62 +1,26 @@
-import { useEffect, useState } from "react";
+import { Route, Routes } from "react-router-dom";
+import Layout from "@/shared/components/Layout";
+import ProtectedRoute from "@/shared/components/ProtectedRoute";
+import Dashboard from "@/pages/Dashboard";
+import Escolas from "@/pages/Escolas";
+import Login from "@/pages/Login";
+import UsersPage from "@/pages/Users";
 
-function App() {
-  const [apiStatus, setApiStatus] = useState<string>("a verificar...");
-
-  useEffect(() => {
-    fetch("/api/health")
-      .then((res) => res.json())
-      .then((data) => setApiStatus(data.status === "ok" ? "Conectado" : "Erro"))
-      .catch(() => setApiStatus("Offline"));
-  }, []);
-
+export default function App() {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: "Inter, Roboto, Arial, sans-serif",
-        backgroundColor: "#F0F4FA",
-        color: "#1A3F7A",
-      }}
-    >
-      <h1 style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>SIENA</h1>
-      <p style={{ fontSize: "1.1rem", opacity: 0.8, marginBottom: "2rem" }}>
-        Sistema de Integração Educacional Nacional de Angola
-      </p>
-      <div
-        style={{
-          padding: "1.5rem 2rem",
-          backgroundColor: "#fff",
-          borderRadius: "8px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-        }}
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
       >
-        <p style={{ margin: 0 }}>
-          Backend API:{" "}
-          <strong
-            style={{
-              color: apiStatus === "Conectado" ? "#00A878" : "#E53E3E",
-            }}
-          >
-            {apiStatus}
-          </strong>
-        </p>
-      </div>
-      <p
-        style={{
-          marginTop: "2rem",
-          fontSize: "0.85rem",
-          opacity: 0.5,
-        }}
-      >
-        Educar é transformar o futuro de Angola
-      </p>
-    </div>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/escolas" element={<Escolas />} />
+        <Route path="/users" element={<UsersPage />} />
+      </Route>
+    </Routes>
   );
 }
-
-export default App;

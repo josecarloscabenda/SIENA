@@ -9,6 +9,7 @@ from sqlalchemy import create_engine
 from src.common.database.base import Base
 
 # Import all models so Alembic can detect them
+import src.modules.escolas.infrastructure.models  # noqa: F401
 import src.modules.identity.infrastructure.models  # noqa: F401
 
 config = context.config

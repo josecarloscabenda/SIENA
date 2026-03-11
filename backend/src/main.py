@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from src.common.database.session import engine
+from src.modules.escolas.api.router import router as escolas_router
 from src.modules.identity.api.router import router as identity_router
 
 logger = logging.getLogger("siena")
@@ -96,5 +97,4 @@ async def readiness_check() -> dict[str, str]:
 
 # --- Registar routers dos módulos ---
 app.include_router(identity_router, prefix="/api/v1", tags=["Identity"])
-# from src.modules.escolas.api.router import router as escolas_router
-# app.include_router(escolas_router, prefix="/api/v1", tags=["Escolas"])
+app.include_router(escolas_router, prefix="/api/v1", tags=["Escolas"])
