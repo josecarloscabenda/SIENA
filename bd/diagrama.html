@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIENA - Modelo Relacional</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="diagrama.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-content">
+      <h1><span>SIENA</span> &mdash; Modelo Relacional</h1>
+
+      <div class="stats">
+        <div>
+          <span class="stat-value" id="stat-schemas">0</span>
+          Schemas
+        </div>
+        <div>
+          <span class="stat-value" id="stat-tables">0</span>
+          Tabelas
+        </div>
+        <div>
+          <span class="stat-value" id="stat-cols">0</span>
+          Colunas
+        </div>
+        <div>
+          <span class="stat-value" id="stat-refs">0</span>
+          FK Refs
+        </div>
+      </div>
+
+      <div class="search-bar">
+        <input type="text" id="search" placeholder="Pesquisar tabelas ou dominios...">
+      </div>
+
+      <div id="legend" class="legend"></div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="grid" id="grid"></div>
+    <aside class="detail-panel" id="detail-panel"></aside>
+  </main>
+
+  <script src="diagrama.js"></script>
+</body>
+</html>
