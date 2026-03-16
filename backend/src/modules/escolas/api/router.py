@@ -11,15 +11,73 @@ from src.modules.escolas.api.dtos import (
     AnoLetivoResponse,
     CreateAnoLetivoRequest,
     CreateEscolaRequest,
+    CreateEscolaWithTenantRequest,
+    CreateEscolaWithTenantResponse,
+    CreateInfraestruturaRequest,
+    DiretorResponse,
     EscolaDetailResponse,
     EscolaListResponse,
     EscolaResponse,
     InfraestruturaResponse,
+    PessoaSimpleResponse,
     UpdateEscolaRequest,
+    UpdateInfraestruturaRequest,
 )
 from src.modules.escolas.application.services import EscolaService
 
 router = APIRouter()
+
+
+@router.post(
+    "/escolas/with-tenant",
+    response_model=CreateEscolaWithTenantResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_role("super_admin"))],
+)
+async def create_escola_with_tenant(
+    body: CreateEscolaWithTenantRequest,
+    db: AsyncSession = Depends(get_db),
+) -> CreateEscolaWithTenantResponse:
+    """Super admin: create Tenant + Escola + Pessoa + Utilizador(diretor) in one operation."""
+    svc = EscolaService(db)
+    p = body.diretor_pessoa
+    u = body.diretor_user
+    try:
+        result = await svc.create_escola_with_tenant(
+            nome=body.nome,
+            provincia=body.provincia,
+            municipio=body.municipio,
+            tipo=body.tipo,
+            nivel_ensino=body.nivel_ensino,
+            codigo_sige=body.codigo_sige,
+            comuna=body.comuna,
+            endereco=body.endereco,
+            telefone=body.telefone,
+            email=body.email,
+            latitude=body.latitude,
+            longitude=body.longitude,
+            # Pessoa
+            diretor_nome_completo=p.nome_completo,
+            diretor_bi=p.bi_identificacao,
+            diretor_dt_nascimento=p.dt_nascimento,
+            diretor_sexo=p.sexo,
+            diretor_nacionalidade=p.nacionalidade,
+            diretor_morada=p.morada,
+            diretor_telefone=p.telefone,
+            diretor_email=p.email,
+            # User
+            diretor_username=u.username,
+            diretor_password=u.password,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
+    return CreateEscolaWithTenantResponse(
+        tenant_id=result["tenant"].id,
+        escola=EscolaResponse.model_validate(result["escola"]),
+        diretor=DiretorResponse.model_validate(result["diretor"]),
+        pessoa=PessoaSimpleResponse.model_validate(result["pessoa"]),
+    )
 
 
 @router.post(
@@ -53,6 +111,49 @@ async def create_escola(
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+    return EscolaDetailResponse.model_validate(escola)
+
+
+@router.get(
+    "/escolas/all",
+    response_model=EscolaListResponse,
+    dependencies=[Depends(require_role("super_admin"))],
+)
+async def list_all_escolas(
+    db: AsyncSession = Depends(get_db),
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=20, ge=1, le=100),
+    provincia: str | None = Query(default=None),
+) -> EscolaListResponse:
+    """Super admin: list ALL escolas across all tenants."""
+    svc = EscolaService(db)
+    escolas, total = await svc.list_all_escolas(
+        offset=offset,
+        limit=limit,
+        provincia=provincia,
+    )
+    return EscolaListResponse(
+        total=total,
+        offset=offset,
+        limit=limit,
+        items=[EscolaResponse.model_validate(e) for e in escolas],
+    )
+
+
+@router.get(
+    "/escolas/all/{escola_id}",
+    response_model=EscolaDetailResponse,
+    dependencies=[Depends(require_role("super_admin"))],
+)
+async def get_escola_global(
+    escola_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> EscolaDetailResponse:
+    """Super admin: get escola detail without tenant filter."""
+    svc = EscolaService(db)
+    escola = await svc.get_escola_global(escola_id)
+    if escola is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Escola não encontrada")
     return EscolaDetailResponse.model_validate(escola)
 
 
@@ -158,3 +259,78 @@ async def list_infraestruturas(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     return [InfraestruturaResponse.model_validate(i) for i in infras]
+
+
+@router.post(
+    "/escolas/{escola_id}/infraestruturas",
+    response_model=InfraestruturaResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_role("super_admin", "diretor", "secretaria"))],
+)
+async def create_infraestrutura(
+    escola_id: uuid.UUID,
+    body: CreateInfraestruturaRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> InfraestruturaResponse:
+    """Create a new infraestrutura for an escola."""
+    svc = EscolaService(db)
+    try:
+        infra = await svc.create_infraestrutura(
+            escola_id=escola_id,
+            tenant_id=current_user.tenant_id,
+            nome=body.nome,
+            tipo=body.tipo,
+            capacidade=body.capacidade,
+            estado=body.estado,
+            observacoes=body.observacoes,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+    return InfraestruturaResponse.model_validate(infra)
+
+
+@router.patch(
+    "/escolas/{escola_id}/infraestruturas/{infra_id}",
+    response_model=InfraestruturaResponse,
+    dependencies=[Depends(require_role("super_admin", "diretor", "secretaria"))],
+)
+async def update_infraestrutura(
+    escola_id: uuid.UUID,
+    infra_id: uuid.UUID,
+    body: UpdateInfraestruturaRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> InfraestruturaResponse:
+    """Update an infraestrutura."""
+    svc = EscolaService(db)
+    fields = body.model_dump(exclude_unset=True)
+    try:
+        infra = await svc.update_infraestrutura(
+            infra_id=infra_id,
+            escola_id=escola_id,
+            tenant_id=current_user.tenant_id,
+            **fields,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+    return InfraestruturaResponse.model_validate(infra)
+
+
+@router.delete(
+    "/escolas/{escola_id}/infraestruturas/{infra_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_role("super_admin", "diretor", "secretaria"))],
+)
+async def delete_infraestrutura(
+    escola_id: uuid.UUID,
+    infra_id: uuid.UUID,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Soft-delete an infraestrutura."""
+    svc = EscolaService(db)
+    try:
+        await svc.delete_infraestrutura(infra_id, escola_id, current_user.tenant_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e

@@ -53,6 +53,38 @@ class EscolasRepository:
         result = await self.db.execute(stmt)
         return list(result.scalars().all()), total
 
+    async def get_escola_global(self, escola_id: uuid.UUID) -> Escola | None:
+        """Get escola by ID without tenant filter (super_admin only)."""
+        stmt = (
+            select(Escola)
+            .options(
+                selectinload(Escola.anos_letivos),
+                selectinload(Escola.infraestruturas),
+                selectinload(Escola.configuracao),
+            )
+            .where(Escola.id == escola_id, Escola.deleted_at.is_(None))
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def list_all_escolas(
+        self,
+        offset: int = 0,
+        limit: int = 20,
+        provincia: str | None = None,
+    ) -> tuple[list[Escola], int]:
+        """List all escolas across tenants (super_admin view)."""
+        base = select(Escola).where(Escola.deleted_at.is_(None))
+        if provincia:
+            base = base.where(Escola.provincia == provincia)
+
+        count_stmt = select(func.count()).select_from(base.subquery())
+        total = (await self.db.execute(count_stmt)).scalar_one()
+
+        stmt = base.order_by(Escola.nome).offset(offset).limit(limit)
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all()), total
+
     async def create_escola(self, escola: Escola) -> Escola:
         self.db.add(escola)
         await self.db.flush()
@@ -106,6 +138,24 @@ class EscolasRepository:
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_infraestrutura(
+        self, infra_id: uuid.UUID, escola_id: uuid.UUID, tenant_id: uuid.UUID,
+    ) -> Infraestrutura | None:
+        stmt = select(Infraestrutura).where(
+            Infraestrutura.id == infra_id,
+            Infraestrutura.escola_id == escola_id,
+            Infraestrutura.tenant_id == tenant_id,
+            Infraestrutura.deleted_at.is_(None),
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def create_infraestrutura(self, infra: Infraestrutura) -> Infraestrutura:
+        self.db.add(infra)
+        await self.db.flush()
+        await self.db.refresh(infra)
+        return infra
 
     # --- Configuração ---
 

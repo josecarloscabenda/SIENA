@@ -103,6 +103,22 @@ class AnoLetivoResponse(BaseModel):
 
 # --- Infraestrutura ---
 
+class CreateInfraestruturaRequest(BaseModel):
+    nome: str = Field(min_length=2, max_length=255)
+    tipo: str = Field(default="sala_aula", pattern="^(sala_aula|laboratorio|biblioteca|quadra|cantina|administrativo)$")
+    capacidade: int | None = Field(default=None, ge=0)
+    estado: str = Field(default="operacional", pattern="^(operacional|em_reparacao|inoperacional)$")
+    observacoes: str | None = None
+
+
+class UpdateInfraestruturaRequest(BaseModel):
+    nome: str | None = Field(default=None, min_length=2, max_length=255)
+    tipo: str | None = Field(default=None, pattern="^(sala_aula|laboratorio|biblioteca|quadra|cantina|administrativo)$")
+    capacidade: int | None = Field(default=None, ge=0)
+    estado: str | None = Field(default=None, pattern="^(operacional|em_reparacao|inoperacional)$")
+    observacoes: str | None = None
+
+
 class InfraestruturaResponse(BaseModel):
     model_config = {"from_attributes": True}
 
@@ -127,3 +143,70 @@ class ConfiguracaoEscolaResponse(BaseModel):
     nota_maxima: int
     nota_minima_aprovacao: int
     configuracao_extra: dict | None
+
+
+# --- Criar Escola com Tenant (super_admin) ---
+
+class DiretorPessoaData(BaseModel):
+    """Dados pessoais do diretor (Pessoa)."""
+    nome_completo: str = Field(min_length=2, max_length=255)
+    bi_identificacao: str = Field(min_length=5, max_length=50)
+    dt_nascimento: date
+    sexo: str = Field(pattern="^(M|F)$")
+    nacionalidade: str = Field(default="Angolana", max_length=100)
+    morada: str | None = None
+    telefone: str | None = Field(default=None, max_length=30)
+    email: str | None = Field(default=None, max_length=255)
+
+
+class DiretorUserData(BaseModel):
+    """Credenciais de acesso do diretor (Utilizador)."""
+    username: str = Field(min_length=3, max_length=100)
+    password: str = Field(min_length=6, max_length=128)
+
+
+class CreateEscolaWithTenantRequest(BaseModel):
+    # Escola
+    nome: str = Field(min_length=2, max_length=255)
+    codigo_sige: str | None = Field(default=None, max_length=50)
+    tipo: str = Field(default="publica", pattern="^(publica|privada|comparticipada)$")
+    nivel_ensino: str = Field(
+        default="primario",
+        pattern="^(primario|secundario_1ciclo|secundario_2ciclo|tecnico)$",
+    )
+    provincia: str = Field(min_length=2, max_length=100)
+    municipio: str = Field(min_length=2, max_length=100)
+    comuna: str | None = Field(default=None, max_length=100)
+    endereco: str | None = None
+    telefone: str | None = Field(default=None, max_length=30)
+    email: str | None = Field(default=None, max_length=255)
+    latitude: float | None = None
+    longitude: float | None = None
+    # Diretor — nested objects
+    diretor_pessoa: DiretorPessoaData
+    diretor_user: DiretorUserData
+
+
+class DiretorResponse(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: uuid.UUID
+    username: str
+    nome_completo: str
+    email: str | None
+
+
+class PessoaSimpleResponse(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: uuid.UUID
+    nome_completo: str
+    bi_identificacao: str
+    sexo: str
+
+
+class CreateEscolaWithTenantResponse(BaseModel):
+    tenant_id: uuid.UUID
+    escola: EscolaResponse
+    diretor: DiretorResponse
+    pessoa: PessoaSimpleResponse

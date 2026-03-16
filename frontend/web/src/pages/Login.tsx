@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { GraduationCap } from "lucide-react";
 import { useAuth } from "@/shared/hooks/useAuth";
 import styles from "./Login.module.css";
@@ -9,7 +9,6 @@ const PILOT_TENANT_ID = "9404f9cd-8f99-4126-8e00-b227a48c3b37";
 
 export default function Login() {
   const { login, isAuthenticated, loading } = useAuth();
-  const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -25,7 +24,6 @@ export default function Login() {
 
     try {
       await login(username, password, PILOT_TENANT_ID);
-      navigate("/");
     } catch {
       setError("Credenciais inválidas. Verifique o username e password.");
     } finally {

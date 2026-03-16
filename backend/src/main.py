@@ -10,6 +10,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from src.common.database.session import engine
+from src.modules.academico.api.router import router as academico_router
+from src.modules.avaliacoes.api.import_router import router as avaliacoes_import_router
+from src.modules.avaliacoes.api.router import router as avaliacoes_router
+from src.modules.directory.api.import_router import router as directory_import_router
+from src.modules.directory.api.router import router as directory_router
+from src.modules.enrollment.api.router import router as enrollment_router
 from src.modules.escolas.api.router import router as escolas_router
 from src.modules.identity.api.router import router as identity_router
 
@@ -98,3 +104,9 @@ async def readiness_check() -> dict[str, str]:
 # --- Registar routers dos módulos ---
 app.include_router(identity_router, prefix="/api/v1", tags=["Identity"])
 app.include_router(escolas_router, prefix="/api/v1", tags=["Escolas"])
+app.include_router(directory_router, prefix="/api/v1", tags=["Directory"])
+app.include_router(enrollment_router, prefix="/api/v1", tags=["Enrollment"])
+app.include_router(academico_router, prefix="/api/v1", tags=["Academico"])
+app.include_router(avaliacoes_router, prefix="/api/v1", tags=["Avaliacoes"])
+app.include_router(directory_import_router, prefix="/api/v1", tags=["Import"])
+app.include_router(avaliacoes_import_router, prefix="/api/v1", tags=["Import"])

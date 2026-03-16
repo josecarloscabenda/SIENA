@@ -13,9 +13,7 @@ Project SIENA {
 Table identity.tenant {
   id uuid [pk]
   nome varchar(255) [not null, note: 'Nome da escola/organização']
-  estado varchar(20) [not null, default: 'ativo', note: 'ativo, suspensa, expirada']
-  plano varchar(50) [not null, default: 'basico', note: 'basico, profissional, enterprise']
-  licenca_validade timestamptz
+  estado varchar(20) [not null, default: 'ativo', note: 'ativo, suspenso, inativo']
   configuracao jsonb [default: '{}']
   created_at timestamptz [not null]
   updated_at timestamptz [not null]
@@ -71,32 +69,67 @@ Table identity.utilizador_papel {
   }
 }
 
+Table identity.sessao_ativa {
+  id uuid [pk]
+  utilizador_id uuid [not null]
+  token_hash varchar(255) [not null, note: 'Hash SHA-256 do token JWT']
+  ip varchar(50) [not null]
+  user_agent varchar(500)
+  criado_em timestamptz [not null]
+  expira_em timestamptz [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  deleted_at timestamptz
+
+  Indexes {
+    utilizador_id
+    token_hash [unique]
+  }
+}
+
+Table identity.politica_password {
+  id uuid [pk]
+  tenant_id uuid [not null, unique, note: '1:1 com tenant']
+  comprimento_min integer [not null, default: 8]
+  complexidade varchar(50) [not null, default: 'media', note: 'baixa, media, alta (maiúsculas+números+especiais)']
+  validade_dias integer [not null, default: 90, note: 'Dias até expirar. 0 = nunca expira']
+  bloqueio_tentativas integer [not null, default: 5, note: 'Tentativas antes de bloquear conta']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  deleted_at timestamptz
+
+  Indexes {
+    tenant_id [unique]
+  }
+}
+
 //////////////////////////////////////////////////////
 // 02 — escolas
 //////////////////////////////////////////////////////
 
 Table escolas.escola {
   id uuid [pk]
-  tenant_id uuid [not null]
+  tenant_id uuid [not null, unique, note: '1:1 com tenant']
   nome varchar(255) [not null]
   codigo_sige varchar(50) [unique, note: 'Código SIGE nacional']
-  tipo varchar(50) [default: 'publica', note: 'publica, privada, comparticipada']
+  natureza varchar(50) [default: 'publica', note: 'publica, privada, publico_privada']
   nivel_ensino varchar(100) [default: 'primario', note: 'primario, secundario_1ciclo, secundario_2ciclo, tecnico']
+  estatuto_legal varchar(100) [note: 'Estatuto legal da instituição']
   provincia varchar(100) [not null]
   municipio varchar(100) [not null]
   comuna varchar(100)
   endereco text
   telefone varchar(30)
   email varchar(255)
-  latitude float [note: 'GPS']
-  longitude float [note: 'GPS']
+  coordenadas_gps point [note: 'Latitude/Longitude GPS']
   ativa boolean [default: true]
   created_at timestamptz [not null]
   updated_at timestamptz [not null]
   deleted_at timestamptz
 
   Indexes {
-    tenant_id
+    tenant_id [unique]
+    codigo_sige [unique]
   }
 }
 
@@ -125,9 +158,10 @@ Table escolas.infraestrutura {
   tenant_id uuid [not null]
   escola_id uuid [not null]
   nome varchar(255) [not null]
-  tipo varchar(50) [default: 'sala_aula', note: 'sala_aula, laboratorio, biblioteca, quadra, cantina, administrativo']
+  tipo varchar(50) [default: 'sala', note: 'sala, laboratorio, biblioteca, refeitorio, quadra, administrativo']
+  quantidade integer [not null, default: 1, note: 'Número de unidades deste tipo']
   capacidade integer
-  estado varchar(30) [default: 'operacional', note: 'operacional, em_reparacao, inoperacional']
+  estado varchar(30) [default: 'bom', note: 'bom, degradado, inoperante']
   observacoes text
   created_at timestamptz [not null]
   updated_at timestamptz [not null]
@@ -143,9 +177,14 @@ Table escolas.configuracao_escola {
   id uuid [pk]
   tenant_id uuid [not null]
   escola_id uuid [not null, unique, note: '1:1 com escola']
+  idioma varchar(10) [not null, default: 'pt', note: 'pt, en, fr']
+  moeda varchar(10) [not null, default: 'AOA', note: 'ISO 4217: AOA, USD, EUR']
   num_periodos integer [default: 3]
   nota_maxima integer [default: 20]
   nota_minima_aprovacao integer [default: 10]
+  regras_nota jsonb [default: '{}', note: 'Fórmulas, pesos, arredondamento']
+  politica_falta jsonb [default: '{}', note: 'Limite faltas, justificação, consequências']
+  parametros_vocacional jsonb [default: '{}', note: 'Config. do módulo vocacional por escola']
   configuracao_extra jsonb [default: '{}']
   created_at timestamptz [not null]
   updated_at timestamptz [not null]
@@ -153,6 +192,24 @@ Table escolas.configuracao_escola {
 
   Indexes {
     tenant_id
+  }
+}
+
+Table escolas.licenca {
+  id uuid [pk]
+  tenant_id uuid [not null]
+  escola_id uuid [not null, unique, note: '1:1 com escola']
+  modulos_ativos jsonb [not null, default: '[]', note: 'Array de módulos: academico, financeiro, provas, vocacional, estoque, alimentacao, etc.']
+  limite_utilizadores integer [not null, default: 50, note: 'Máximo de utilizadores permitidos']
+  validade date [not null, note: 'Data de expiração da licença']
+  estado varchar(20) [not null, default: 'ativa', note: 'ativa, suspensa, expirada']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  deleted_at timestamptz
+
+  Indexes {
+    tenant_id
+    escola_id [unique]
   }
 }
 
@@ -1318,14 +1375,18 @@ Ref: identity.utilizador.tenant_id > identity.tenant.id
 Ref: identity.utilizador_papel.utilizador_id > identity.utilizador.id
 Ref: identity.utilizador_papel.papel_id > identity.papel.id
 Ref: identity.utilizador_papel.tenant_id > identity.tenant.id
+Ref: identity.sessao_ativa.utilizador_id > identity.utilizador.id
+Ref: identity.politica_password.tenant_id > identity.tenant.id
 
-Ref: escolas.escola.tenant_id > identity.tenant.id
+Ref: escolas.escola.tenant_id - identity.tenant.id [note: '1:1 — cada escola é um tenant']
 Ref: escolas.ano_letivo.tenant_id > identity.tenant.id
 Ref: escolas.ano_letivo.escola_id > escolas.escola.id
 Ref: escolas.infraestrutura.tenant_id > identity.tenant.id
 Ref: escolas.infraestrutura.escola_id > escolas.escola.id
 Ref: escolas.configuracao_escola.tenant_id > identity.tenant.id
 Ref: escolas.configuracao_escola.escola_id > escolas.escola.id
+Ref: escolas.licenca.tenant_id > identity.tenant.id
+Ref: escolas.licenca.escola_id > escolas.escola.id
 
 Ref: directory.pessoa.tenant_id > identity.tenant.id
 Ref: directory.aluno.tenant_id > identity.tenant.id

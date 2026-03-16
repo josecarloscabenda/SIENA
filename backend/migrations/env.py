@@ -9,6 +9,10 @@ from sqlalchemy import create_engine
 from src.common.database.base import Base
 
 # Import all models so Alembic can detect them
+import src.modules.academico.infrastructure.models  # noqa: F401
+import src.modules.avaliacoes.infrastructure.models  # noqa: F401
+import src.modules.directory.infrastructure.models  # noqa: F401
+import src.modules.enrollment.infrastructure.models  # noqa: F401
 import src.modules.escolas.infrastructure.models  # noqa: F401
 import src.modules.identity.infrastructure.models  # noqa: F401
 

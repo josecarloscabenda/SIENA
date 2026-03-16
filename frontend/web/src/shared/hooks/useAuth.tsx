@@ -82,3 +82,13 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
+
+export function getDefaultPortal(user: UserResponse): string {
+  const p = user.papeis;
+  if (p.includes("super_admin")) return "/admin";
+  if (p.includes("diretor") || p.includes("secretaria")) return "/gestao";
+  if (p.includes("professor")) return "/professor";
+  if (p.includes("aluno")) return "/aluno";
+  if (p.includes("encarregado")) return "/encarregado";
+  return "/login";
+}

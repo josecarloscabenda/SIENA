@@ -378,7 +378,52 @@ A Fase 1.4 (frontend) pode avançar em paralelo com o backend — à medida que 
 | Portais frontend | 3 (direção, professor, aluno/encarregado) |
 | Páginas frontend novas | ~25 |
 
+#Aqui ficam os utilizadores de teste para aceder a cada portal:
+
+Username	Password	Papel	Portal que ve
+admin	admin123	super_admin	Tudo (Gestao + todos os menus)
+diretor	diretor123	diretor	Gestao (alunos, professores, matriculas, turmas, curriculos, horarios, pauta, utilizadores)
+secretaria	secretaria123	secretaria	Gestao (alunos, encarregados, matriculas, turmas, horarios, pauta)
+professor	professor123	professor	Portal Professor (minhas turmas, diario, notas, horario)
+aluno	aluno123	aluno	Portal Aluno (boletim, faltas, horario)
+encarregado	encarregado123	encarregado	Portal Encarregado (ver educandos)
+
 ---
+
+Bug Fixes
+Horarios — Horários weren't showing after selecting a turma. The backend returns times as "07:30:00" (HH:MM:SS) but the frontend compared with "07:30" (HH:MM). Added trimTime() to strip seconds before comparison.
+
+Matriculas — Actions (Aprovar/Rejeitar) had broken layout because display: flex was set directly on <td>. Moved the flex to a wrapper <div> inside the cell, and shows "—" for non-pendente rows.
+
+Pauta/Avaliacoes — Now sends periodo directly to the backend API instead of fetching all and filtering client-side. Also increased limit to 100 to ensure all results are returned.
+
+New Features
+Escola page (gestao) — Completely rewritten. Now shows the tenant's escola directly with 4 tabs:
+
+Dados Gerais — all school info (name, SIGE code, type, location, contacts)
+Infraestrutura — full CRUD (add/edit/delete) with stats summary (total classrooms, total capacity, operational count)
+Anos Letivos — list with status badges
+Configuração — periods, grade settings
+Backend infraestrutura CRUD — Added POST, PATCH, DELETE endpoints for /escolas/{id}/infraestruturas/{id} with DTOs, repository, and service methods.
+
+Turmas page — Improved with:
+
+Professor and Ano Letivo dropdowns instead of raw UUID fields
+Professor name shown in the table listing
+Detail view showing turma info + all horários with disciplina/professor names
+Curriculos page — Fixed:
+
+Anos letivos now loaded from escola detail (the standalone /anos-letivos endpoint didn't exist)
+Disciplinas table shows currículo name instead of raw UUID
+Currículos table shows associated disciplina badges
+Backend is restarted and all changes are live. You can test the fixes now:
+
+Horarios — should show lessons in the grid after selecting a turma
+Matriculas — actions (Aprovar/Rejeitar) properly aligned in the table
+Pauta — avaliações should load correctly with the periodo filter
+Escola (gestao) — new tabbed view with infraestrutura CRUD
+Turmas — professor dropdown + detail view with horários
+Curriculos — fixed anos letivos dropdown + curriculo names in disciplinas table
 
 ## Depois desta fase
 
