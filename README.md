@@ -25,3 +25,5 @@ frontend/mobile/ — React Native (Fase 2)
 
 COmandos para configurar o git e baixar o repostorio no meu lap top abaixo:
 git 
+
+Cabenda
