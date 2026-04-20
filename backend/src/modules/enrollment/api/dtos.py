@@ -27,7 +27,10 @@ class MatriculaResponse(BaseModel):
     id: uuid.UUID
     tenant_id: uuid.UUID
     aluno_id: uuid.UUID
+    aluno_nome: str | None = None
+    aluno_n_processo: str | None = None
     ano_letivo_id: uuid.UUID
+    ano_letivo_designacao: str | None = None
     classe: str
     turno: str
     estado: str

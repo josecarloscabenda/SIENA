@@ -15,8 +15,13 @@ interface AuthState {
   isAuthenticated: boolean;
 }
 
+interface LoginOptions {
+  tenantId?: string;
+  tenantSlug?: string;
+}
+
 interface AuthContextType extends AuthState {
-  login: (username: string, password: string, tenantId: string) => Promise<void>;
+  login: (username: string, password: string, opts: LoginOptions) => Promise<void>;
   logout: () => void;
   hasRole: (...roles: string[]) => boolean;
 }
@@ -48,20 +53,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [fetchUser]);
 
-  const login = async (username: string, password: string, tenantId: string) => {
-    const { data } = await api.post("/auth/login", {
-      username,
-      password,
-      tenant_id: tenantId,
-    });
+  const login = async (username: string, password: string, opts: LoginOptions) => {
+    const body: Record<string, string> = { username, password };
+    if (opts.tenantId) body.tenant_id = opts.tenantId;
+    if (opts.tenantSlug) body.tenant_slug = opts.tenantSlug;
+    const { data } = await api.post("/auth/login", body);
     localStorage.setItem("access_token", data.access_token);
     localStorage.setItem("refresh_token", data.refresh_token);
+    if (opts.tenantSlug) {
+      localStorage.setItem("tenant_slug", opts.tenantSlug);
+    }
     await fetchUser();
   };
 
   const logout = () => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
+    localStorage.removeItem("tenant_slug");
     setState({ user: null, loading: false, isAuthenticated: false });
   };
 

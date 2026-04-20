@@ -210,3 +210,20 @@ class CreateEscolaWithTenantResponse(BaseModel):
     escola: EscolaResponse
     diretor: DiretorResponse
     pessoa: PessoaSimpleResponse
+
+
+# --- Lookup (dropdowns) ---
+
+class AnoLetivoLookupItem(BaseModel):
+    id: uuid.UUID
+    designacao: str
+    ano: int
+    ativo: bool
+    escola_id: uuid.UUID
+
+
+class EscolaLookupItem(BaseModel):
+    id: uuid.UUID
+    nome: str
+    provincia: str
+    municipio: str

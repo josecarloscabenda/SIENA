@@ -130,7 +130,8 @@ export default function MinhasFaltas() {
                 <thead>
                   <tr>
                     <th>Data</th>
-                    <th>Disciplina ID</th>
+                    <th>Disciplina</th>
+                    <th>Turma</th>
                     <th>Tipo</th>
                     <th>Justificativa</th>
                   </tr>
@@ -140,8 +141,13 @@ export default function MinhasFaltas() {
                     <tr key={falta.id}>
                       <td>{new Date(falta.data).toLocaleDateString("pt-AO")}</td>
                       <td title={falta.disciplina_id}>
-                        {falta.disciplina_id.slice(0, 8)}...
+                        {falta.disciplina_nome || (
+                          <span className={s.muted}>
+                            {falta.disciplina_id.slice(0, 8)}
+                          </span>
+                        )}
                       </td>
+                      <td>{falta.turma_nome || <span className={s.muted}>—</span>}</td>
                       <td>
                         <span
                           className={`${s.badge} ${

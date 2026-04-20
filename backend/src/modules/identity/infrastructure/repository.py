@@ -16,6 +16,24 @@ class IdentityRepository:
     async def get_tenant(self, tenant_id: uuid.UUID) -> Tenant | None:
         return await self.session.get(Tenant, tenant_id)
 
+    async def get_tenant_by_slug(self, slug: str) -> Tenant | None:
+        stmt = select(Tenant).where(
+            Tenant.slug == slug,
+            Tenant.deleted_at.is_(None),
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def list_public_tenants(self) -> list[Tenant]:
+        """Lista tenants activos para selector público de login."""
+        stmt = (
+            select(Tenant)
+            .where(Tenant.estado == "ativo", Tenant.deleted_at.is_(None))
+            .order_by(Tenant.nome)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def create_tenant(self, tenant: Tenant) -> Tenant:
         self.session.add(tenant)
         await self.session.flush()

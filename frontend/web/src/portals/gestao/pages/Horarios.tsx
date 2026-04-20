@@ -251,8 +251,15 @@ export default function Horarios() {
                     {lesson && (
                       <div className={s.scheduleItem}>
                         <div className={s.scheduleItemName}>
-                          {discMap.get(lesson.disciplina_id) || "—"}
+                          {lesson.disciplina_nome ||
+                            discMap.get(lesson.disciplina_id) ||
+                            "—"}
                         </div>
+                        {lesson.professor_nome && (
+                          <div className={s.scheduleItemSub}>
+                            {lesson.professor_nome}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

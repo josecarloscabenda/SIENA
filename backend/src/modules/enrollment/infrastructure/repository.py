@@ -5,12 +5,24 @@ import uuid
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from src.modules.directory.infrastructure.models import Aluno, Pessoa
 from src.modules.enrollment.infrastructure.models import (
     AlocacaoTurma,
     DocumentoMatricula,
     Matricula,
     Transferencia,
 )
+from src.modules.escolas.infrastructure.models import AnoLetivo
+
+
+def _enrich_matricula(
+    m: Matricula, aluno_nome: str | None, aluno_n_processo: str | None, ano_letivo_designacao: str | None
+) -> Matricula:
+    """Attach display fields to a Matricula for DTO serialization."""
+    m.aluno_nome = aluno_nome  # type: ignore[attr-defined]
+    m.aluno_n_processo = aluno_n_processo  # type: ignore[attr-defined]
+    m.ano_letivo_designacao = ano_letivo_designacao  # type: ignore[attr-defined]
+    return m
 
 
 class EnrollmentRepository:
@@ -23,11 +35,19 @@ class EnrollmentRepository:
         self, matricula_id: uuid.UUID, tenant_id: uuid.UUID
     ) -> Matricula | None:
         stmt = (
-            select(Matricula)
+            select(
+                Matricula,
+                Pessoa.nome_completo.label("aluno_nome"),
+                Aluno.n_processo.label("aluno_n_processo"),
+                AnoLetivo.designacao.label("ano_letivo_designacao"),
+            )
             .options(
                 selectinload(Matricula.alocacao),
                 selectinload(Matricula.documentos),
             )
+            .outerjoin(Aluno, Aluno.id == Matricula.aluno_id)
+            .outerjoin(Pessoa, Pessoa.id == Aluno.pessoa_id)
+            .outerjoin(AnoLetivo, AnoLetivo.id == Matricula.ano_letivo_id)
             .where(
                 Matricula.id == matricula_id,
                 Matricula.tenant_id == tenant_id,
@@ -35,7 +55,12 @@ class EnrollmentRepository:
             )
         )
         result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        row = result.first()
+        if row is None:
+            return None
+        return _enrich_matricula(
+            row.Matricula, row.aluno_nome, row.aluno_n_processo, row.ano_letivo_designacao
+        )
 
     async def get_matricula_existente(
         self, tenant_id: uuid.UUID, aluno_id: uuid.UUID, ano_letivo_id: uuid.UUID
@@ -59,25 +84,48 @@ class EnrollmentRepository:
         estado: str | None = None,
         turno: str | None = None,
     ) -> tuple[list[Matricula], int]:
-        base = select(Matricula).where(
+        filters = [
             Matricula.tenant_id == tenant_id,
             Matricula.deleted_at.is_(None),
-        )
+        ]
         if ano_letivo_id:
-            base = base.where(Matricula.ano_letivo_id == ano_letivo_id)
+            filters.append(Matricula.ano_letivo_id == ano_letivo_id)
         if classe:
-            base = base.where(Matricula.classe == classe)
+            filters.append(Matricula.classe == classe)
         if estado:
-            base = base.where(Matricula.estado == estado)
+            filters.append(Matricula.estado == estado)
         if turno:
-            base = base.where(Matricula.turno == turno)
+            filters.append(Matricula.turno == turno)
 
-        count_stmt = select(func.count()).select_from(base.subquery())
+        count_stmt = select(func.count(Matricula.id)).where(*filters)
         total = (await self.db.execute(count_stmt)).scalar_one()
 
-        stmt = base.order_by(Matricula.data_pedido.desc()).offset(offset).limit(limit)
+        stmt = (
+            select(
+                Matricula,
+                Pessoa.nome_completo.label("aluno_nome"),
+                Aluno.n_processo.label("aluno_n_processo"),
+                AnoLetivo.designacao.label("ano_letivo_designacao"),
+            )
+            .outerjoin(Aluno, Aluno.id == Matricula.aluno_id)
+            .outerjoin(Pessoa, Pessoa.id == Aluno.pessoa_id)
+            .outerjoin(AnoLetivo, AnoLetivo.id == Matricula.ano_letivo_id)
+            .where(*filters)
+            .order_by(Matricula.data_pedido.desc())
+            .offset(offset)
+            .limit(limit)
+        )
         result = await self.db.execute(stmt)
-        return list(result.scalars().all()), total
+        items = [
+            _enrich_matricula(
+                row.Matricula,
+                row.aluno_nome,
+                row.aluno_n_processo,
+                row.ano_letivo_designacao,
+            )
+            for row in result.all()
+        ]
+        return items, total
 
     async def create_matricula(self, matricula: Matricula) -> Matricula:
         self.db.add(matricula)

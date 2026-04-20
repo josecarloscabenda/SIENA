@@ -10,7 +10,17 @@ from pydantic import BaseModel, Field
 class LoginRequest(BaseModel):
     username: str = Field(min_length=1)
     password: str = Field(min_length=1)
-    tenant_id: uuid.UUID
+    # One of tenant_id or tenant_slug must be provided.
+    tenant_id: uuid.UUID | None = None
+    tenant_slug: str | None = Field(default=None, min_length=1, max_length=100)
+
+
+class TenantPublicResponse(BaseModel):
+    """Informação pública de um tenant (para selector na página de login)."""
+    id: uuid.UUID
+    nome: str
+    slug: str
+    model_config = {"from_attributes": True}
 
 
 class TokenResponse(BaseModel):

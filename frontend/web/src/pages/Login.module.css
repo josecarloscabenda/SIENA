@@ -106,3 +106,16 @@
   margin-top: 28px;
   font-style: italic;
 }
+
+.tenantLocked {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #EBF4FF;
+  border: 2px solid var(--primary);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--primary);
+}

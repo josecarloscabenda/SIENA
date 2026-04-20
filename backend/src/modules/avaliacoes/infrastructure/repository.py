@@ -5,6 +5,7 @@ import uuid
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from src.modules.academico.infrastructure.models import Disciplina, Turma
 from src.modules.avaliacoes.infrastructure.models import (
     Avaliacao,
     Boletim,
@@ -12,6 +13,13 @@ from src.modules.avaliacoes.infrastructure.models import (
     Nota,
     RegraMedia,
 )
+from src.modules.directory.infrastructure.models import Aluno, Pessoa
+
+
+def _attach(obj, **kwargs):
+    for k, v in kwargs.items():
+        setattr(obj, k, v)
+    return obj
 
 
 class AvaliacoesRepository:
@@ -24,8 +32,14 @@ class AvaliacoesRepository:
         self, avaliacao_id: uuid.UUID, tenant_id: uuid.UUID
     ) -> Avaliacao | None:
         stmt = (
-            select(Avaliacao)
+            select(
+                Avaliacao,
+                Turma.nome.label("turma_nome"),
+                Disciplina.nome.label("disciplina_nome"),
+            )
             .options(selectinload(Avaliacao.notas))
+            .outerjoin(Turma, Turma.id == Avaliacao.turma_id)
+            .outerjoin(Disciplina, Disciplina.id == Avaliacao.disciplina_id)
             .where(
                 Avaliacao.id == avaliacao_id,
                 Avaliacao.tenant_id == tenant_id,
@@ -33,7 +47,15 @@ class AvaliacoesRepository:
             )
         )
         result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        row = result.first()
+        if row is None:
+            return None
+        avaliacao = _attach(
+            row.Avaliacao, turma_nome=row.turma_nome, disciplina_nome=row.disciplina_nome
+        )
+        if avaliacao.notas:
+            await self._enrich_notas(avaliacao.notas)
+        return avaliacao
 
     async def list_avaliacoes(
         self,
@@ -44,28 +66,98 @@ class AvaliacoesRepository:
         disciplina_id: uuid.UUID | None = None,
         periodo: int | None = None,
     ) -> tuple[list[Avaliacao], int]:
-        base = select(Avaliacao).where(
-            Avaliacao.tenant_id == tenant_id, Avaliacao.deleted_at.is_(None)
-        )
+        filters = [Avaliacao.tenant_id == tenant_id, Avaliacao.deleted_at.is_(None)]
         if turma_id:
-            base = base.where(Avaliacao.turma_id == turma_id)
+            filters.append(Avaliacao.turma_id == turma_id)
         if disciplina_id:
-            base = base.where(Avaliacao.disciplina_id == disciplina_id)
+            filters.append(Avaliacao.disciplina_id == disciplina_id)
         if periodo:
-            base = base.where(Avaliacao.periodo == periodo)
+            filters.append(Avaliacao.periodo == periodo)
 
-        count_stmt = select(func.count()).select_from(base.subquery())
+        count_stmt = select(func.count(Avaliacao.id)).where(*filters)
         total = (await self.db.execute(count_stmt)).scalar_one()
 
-        stmt = base.order_by(Avaliacao.data.desc()).offset(offset).limit(limit)
+        stmt = (
+            select(
+                Avaliacao,
+                Turma.nome.label("turma_nome"),
+                Disciplina.nome.label("disciplina_nome"),
+            )
+            .outerjoin(Turma, Turma.id == Avaliacao.turma_id)
+            .outerjoin(Disciplina, Disciplina.id == Avaliacao.disciplina_id)
+            .where(*filters)
+            .order_by(Avaliacao.data.desc())
+            .offset(offset)
+            .limit(limit)
+        )
         result = await self.db.execute(stmt)
-        return list(result.scalars().all()), total
+        items = [
+            _attach(
+                row.Avaliacao,
+                turma_nome=row.turma_nome,
+                disciplina_nome=row.disciplina_nome,
+            )
+            for row in result.all()
+        ]
+        return items, total
 
     async def create_avaliacao(self, avaliacao: Avaliacao) -> Avaliacao:
         self.db.add(avaliacao)
         await self.db.flush()
         await self.db.refresh(avaliacao)
         return avaliacao
+
+    async def _enrich_notas(self, notas: list[Nota]) -> None:
+        """Populate aluno_nome and aluno_n_processo on notas."""
+        if not notas:
+            return
+        aluno_ids = {n.aluno_id for n in notas}
+        res = await self.db.execute(
+            select(Aluno.id, Aluno.n_processo, Pessoa.nome_completo)
+            .join(Pessoa, Pessoa.id == Aluno.pessoa_id)
+            .where(Aluno.id.in_(aluno_ids))
+        )
+        aluno_map = {r.id: (r.n_processo, r.nome_completo) for r in res.all()}
+        for n in notas:
+            info = aluno_map.get(n.aluno_id)
+            n.aluno_n_processo = info[0] if info else None  # type: ignore[attr-defined]
+            n.aluno_nome = info[1] if info else None  # type: ignore[attr-defined]
+
+    async def _enrich_faltas(self, faltas: list[Falta]) -> None:
+        """Populate aluno_nome, turma_nome, disciplina_nome on faltas."""
+        if not faltas:
+            return
+        aluno_ids = {f.aluno_id for f in faltas}
+        turma_ids = {f.turma_id for f in faltas}
+        disc_ids = {f.disciplina_id for f in faltas}
+
+        aluno_map: dict[uuid.UUID, str] = {}
+        if aluno_ids:
+            res = await self.db.execute(
+                select(Aluno.id, Pessoa.nome_completo)
+                .join(Pessoa, Pessoa.id == Aluno.pessoa_id)
+                .where(Aluno.id.in_(aluno_ids))
+            )
+            aluno_map = {r.id: r.nome_completo for r in res.all()}
+
+        turma_map: dict[uuid.UUID, str] = {}
+        if turma_ids:
+            res = await self.db.execute(
+                select(Turma.id, Turma.nome).where(Turma.id.in_(turma_ids))
+            )
+            turma_map = {r.id: r.nome for r in res.all()}
+
+        disc_map: dict[uuid.UUID, str] = {}
+        if disc_ids:
+            res = await self.db.execute(
+                select(Disciplina.id, Disciplina.nome).where(Disciplina.id.in_(disc_ids))
+            )
+            disc_map = {r.id: r.nome for r in res.all()}
+
+        for f in faltas:
+            f.aluno_nome = aluno_map.get(f.aluno_id)  # type: ignore[attr-defined]
+            f.turma_nome = turma_map.get(f.turma_id)  # type: ignore[attr-defined]
+            f.disciplina_nome = disc_map.get(f.disciplina_id)  # type: ignore[attr-defined]
 
     # ── Nota ────────────────────────────────────
 
@@ -104,7 +196,9 @@ class AvaliacoesRepository:
             .order_by(Nota.created_at)
         )
         result = await self.db.execute(stmt)
-        return list(result.scalars().all())
+        notas = list(result.scalars().all())
+        await self._enrich_notas(notas)
+        return notas
 
     async def list_notas_aluno(
         self, aluno_id: uuid.UUID, tenant_id: uuid.UUID, periodo: int | None = None
@@ -122,7 +216,9 @@ class AvaliacoesRepository:
             stmt = stmt.where(Avaliacao.periodo == periodo)
         stmt = stmt.order_by(Avaliacao.data)
         result = await self.db.execute(stmt)
-        return list(result.scalars().all())
+        notas = list(result.scalars().all())
+        await self._enrich_notas(notas)
+        return notas
 
     async def list_notas_turma(
         self, turma_id: uuid.UUID, tenant_id: uuid.UUID, periodo: int | None = None
@@ -139,12 +235,15 @@ class AvaliacoesRepository:
         if periodo:
             stmt = stmt.where(Avaliacao.periodo == periodo)
         result = await self.db.execute(stmt)
-        return list(result.scalars().all())
+        notas = list(result.scalars().all())
+        await self._enrich_notas(notas)
+        return notas
 
     async def create_nota(self, nota: Nota) -> Nota:
         self.db.add(nota)
         await self.db.flush()
         await self.db.refresh(nota)
+        await self._enrich_notas([nota])
         return nota
 
     # ── Falta ───────────────────────────────────
@@ -167,7 +266,9 @@ class AvaliacoesRepository:
             base = base.where(Falta.tipo == tipo)
         stmt = base.order_by(Falta.data.desc())
         result = await self.db.execute(stmt)
-        return list(result.scalars().all())
+        faltas = list(result.scalars().all())
+        await self._enrich_faltas(faltas)
+        return faltas
 
     async def count_faltas_aluno(
         self, aluno_id: uuid.UUID, tenant_id: uuid.UUID

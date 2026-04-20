@@ -22,6 +22,19 @@ class AuthService:
     def __init__(self, session: AsyncSession) -> None:
         self.repo = IdentityRepository(session)
 
+    async def resolve_tenant_id(
+        self, tenant_id: uuid.UUID | None, tenant_slug: str | None
+    ) -> uuid.UUID:
+        """Accept either tenant_id OR tenant_slug and return the UUID."""
+        if tenant_id is not None:
+            return tenant_id
+        if tenant_slug:
+            tenant = await self.repo.get_tenant_by_slug(tenant_slug)
+            if tenant is None:
+                raise ValueError(f"Escola '{tenant_slug}' não encontrada")
+            return tenant.id
+        raise ValueError("Identificador da escola (tenant_id ou tenant_slug) é obrigatório")
+
     async def login(self, username: str, password: str, tenant_id: uuid.UUID) -> dict:
         user = await self.repo.get_user_by_username(username, tenant_id)
 

@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { ClipboardList, Plus, ArrowLeft, Trash2 } from "lucide-react";
 import api from "@/shared/api/client";
 import type {
-  TurmaResponse,
+  AlunoLookupItem,
   AvaliacaoResponse,
+  DisciplinaLookupItem,
   NotaResponse,
   PaginatedResponse,
+  TurmaResponse,
 } from "@/shared/api/types";
 import s from "@/shared/styles/common.module.css";
 
@@ -47,6 +49,8 @@ export default function LancarNotas() {
   const [turmas, setTurmas] = useState<TurmaResponse[]>([]);
   const [selectedTurmaId, setSelectedTurmaId] = useState("");
   const [disciplinaId, setDisciplinaId] = useState("");
+  const [disciplinas, setDisciplinas] = useState<DisciplinaLookupItem[]>([]);
+  const [alunos, setAlunos] = useState<AlunoLookupItem[]>([]);
 
   const [avaliacoes, setAvaliacoes] = useState<AvaliacaoResponse[]>([]);
   const [loadingAval, setLoadingAval] = useState(false);
@@ -63,11 +67,19 @@ export default function LancarNotas() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  /* Fetch turmas */
+  /* Fetch turmas + disciplinas + alunos lookups */
   useEffect(() => {
     api
       .get<PaginatedResponse<TurmaResponse>>("/turmas?limit=100")
       .then(({ data }) => setTurmas(data.items))
+      .catch(() => {});
+    api
+      .get<DisciplinaLookupItem[]>("/disciplinas/lookup?limit=500")
+      .then(({ data }) => setDisciplinas(data))
+      .catch(() => {});
+    api
+      .get<AlunoLookupItem[]>("/alunos/lookup?limit=500")
+      .then(({ data }) => setAlunos(data))
       .catch(() => {});
   }, []);
 
@@ -219,16 +231,22 @@ export default function LancarNotas() {
               </select>
             </div>
             <div className={s.field}>
-              <label className={s.label}>Disciplina ID</label>
-              <input
+              <label className={s.label}>Disciplina</label>
+              <select
                 className={s.input}
                 required
-                placeholder="UUID da disciplina"
                 value={avalForm.disciplina_id}
                 onChange={(e) =>
                   setAvalForm({ ...avalForm, disciplina_id: e.target.value })
                 }
-              />
+              >
+                <option value="">Seleccionar disciplina...</option>
+                {disciplinas.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.nome} ({d.codigo})
+                  </option>
+                ))}
+              </select>
             </div>
             <div className={s.field}>
               <label className={s.label}>Tipo</label>
@@ -348,7 +366,8 @@ export default function LancarNotas() {
             <table>
               <thead>
                 <tr>
-                  <th>Aluno ID</th>
+                  <th>Aluno</th>
+                  <th>Nº Processo</th>
                   <th>Valor</th>
                   <th>Observações</th>
                 </tr>
@@ -356,9 +375,12 @@ export default function LancarNotas() {
               <tbody>
                 {notas.map((n) => (
                   <tr key={n.id}>
-                    <td style={{ fontFamily: "monospace", fontSize: "0.8rem" }}>
-                      {n.aluno_id}
+                    <td>
+                      {n.aluno_nome || (
+                        <span className={s.muted}>Aluno {n.aluno_id.slice(0, 8)}</span>
+                      )}
                     </td>
+                    <td>{n.aluno_n_processo || <span className={s.muted}>—</span>}</td>
                     <td>
                       <span
                         className={`${s.badge} ${
@@ -407,16 +429,22 @@ export default function LancarNotas() {
               style={{ marginBottom: 12, alignItems: "flex-end" }}
             >
               <div className={s.field}>
-                <label className={s.label}>Aluno ID</label>
-                <input
+                <label className={s.label}>Aluno</label>
+                <select
                   className={s.input}
                   required
-                  placeholder="UUID do aluno"
                   value={row.aluno_id}
                   onChange={(e) =>
                     updateNotaRow(idx, "aluno_id", e.target.value)
                   }
-                />
+                >
+                  <option value="">Seleccionar aluno...</option>
+                  {alunos.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.nome} — Nº {a.n_processo}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className={s.field}>
                 <label className={s.label}>Valor</label>
@@ -518,13 +546,19 @@ export default function LancarNotas() {
             </select>
           </div>
           <div className={s.field}>
-            <label className={s.label}>Disciplina ID (opcional)</label>
-            <input
+            <label className={s.label}>Disciplina (opcional)</label>
+            <select
               className={s.input}
-              placeholder="Filtrar por disciplina..."
               value={disciplinaId}
               onChange={(e) => setDisciplinaId(e.target.value)}
-            />
+            >
+              <option value="">Todas as disciplinas</option>
+              {disciplinas.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.nome} ({d.codigo})
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>

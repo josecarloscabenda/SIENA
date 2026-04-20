@@ -3,11 +3,13 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.common.auth.middleware import CurrentUser, get_current_user
 from src.common.auth.rbac import require_role
 from src.common.database.session import get_db
 from src.modules.escolas.api.dtos import (
+    AnoLetivoLookupItem,
     AnoLetivoResponse,
     CreateAnoLetivoRequest,
     CreateEscolaRequest,
@@ -17,6 +19,7 @@ from src.modules.escolas.api.dtos import (
     DiretorResponse,
     EscolaDetailResponse,
     EscolaListResponse,
+    EscolaLookupItem,
     EscolaResponse,
     InfraestruturaResponse,
     PessoaSimpleResponse,
@@ -24,6 +27,7 @@ from src.modules.escolas.api.dtos import (
     UpdateInfraestruturaRequest,
 )
 from src.modules.escolas.application.services import EscolaService
+from src.modules.escolas.infrastructure.models import AnoLetivo, Escola
 
 router = APIRouter()
 
@@ -112,6 +116,73 @@ async def create_escola(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     return EscolaDetailResponse.model_validate(escola)
+
+
+# ──────────────────────────────────────────────
+# Lookup endpoints (dropdowns)
+# ──────────────────────────────────────────────
+
+@router.get("/anos-letivos/lookup", response_model=list[AnoLetivoLookupItem])
+async def lookup_anos_letivos(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    escola_id: uuid.UUID | None = Query(default=None),
+    apenas_ativos: bool = Query(default=False),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> list[AnoLetivoLookupItem]:
+    """Lista simplificada de anos letivos para dropdowns."""
+    stmt = select(
+        AnoLetivo.id,
+        AnoLetivo.designacao,
+        AnoLetivo.ano,
+        AnoLetivo.ativo,
+        AnoLetivo.escola_id,
+    ).where(
+        AnoLetivo.tenant_id == current_user.tenant_id,
+        AnoLetivo.deleted_at.is_(None),
+    )
+    if escola_id:
+        stmt = stmt.where(AnoLetivo.escola_id == escola_id)
+    if apenas_ativos:
+        stmt = stmt.where(AnoLetivo.ativo.is_(True))
+    stmt = stmt.order_by(AnoLetivo.ano.desc()).limit(limit)
+    result = await db.execute(stmt)
+    return [
+        AnoLetivoLookupItem(
+            id=r.id,
+            designacao=r.designacao,
+            ano=r.ano,
+            ativo=r.ativo,
+            escola_id=r.escola_id,
+        )
+        for r in result.all()
+    ]
+
+
+@router.get("/escolas/lookup", response_model=list[EscolaLookupItem])
+async def lookup_escolas(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> list[EscolaLookupItem]:
+    """Lista simplificada de escolas do tenant para dropdowns."""
+    stmt = (
+        select(Escola.id, Escola.nome, Escola.provincia, Escola.municipio)
+        .where(
+            Escola.tenant_id == current_user.tenant_id,
+            Escola.deleted_at.is_(None),
+            Escola.ativa.is_(True),
+        )
+        .order_by(Escola.nome)
+        .limit(limit)
+    )
+    result = await db.execute(stmt)
+    return [
+        EscolaLookupItem(
+            id=r.id, nome=r.nome, provincia=r.provincia, municipio=r.municipio
+        )
+        for r in result.all()
+    ]
 
 
 @router.get(

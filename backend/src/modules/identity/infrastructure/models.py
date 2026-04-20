@@ -16,6 +16,12 @@ class Tenant(BaseModel):
     __table_args__ = {"schema": "identity"}
 
     nome: Mapped[str] = mapped_column(String(255), nullable=False)
+    slug: Mapped[str] = mapped_column(
+        String(100),
+        unique=True,
+        nullable=False,
+        comment="Identificador URL-friendly da escola (ex: esa-luanda-1)",
+    )
     estado: Mapped[str] = mapped_column(String(20), nullable=False, server_default="ativo")
     plano: Mapped[str] = mapped_column(String(50), nullable=False, server_default="basico")
     licenca_validade: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

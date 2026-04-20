@@ -3,6 +3,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.common.auth.middleware import CurrentUser, get_current_user
 from src.common.auth.rbac import require_role
@@ -15,14 +16,17 @@ from src.modules.academico.api.dtos import (
     CreateTurmaRequest,
     CurriculoDetailResponse,
     CurriculoListResponse,
+    CurriculoLookupItem,
     CurriculoResponse,
     DiarioClasseResponse,
     DiarioListResponse,
     DisciplinaListResponse,
+    DisciplinaLookupItem,
     DisciplinaResponse,
     HorarioAulaResponse,
     TurmaDetailResponse,
     TurmaListResponse,
+    TurmaLookupItem,
     TurmaResponse,
 )
 from src.modules.academico.application.services import (
@@ -37,6 +41,7 @@ from src.modules.academico.application.services import (
     NotFoundError,
     TurmaService,
 )
+from src.modules.academico.infrastructure.models import Curriculo, Disciplina, Turma
 
 router = APIRouter()
 
@@ -133,6 +138,92 @@ async def list_disciplinas(
         total=total, offset=offset, limit=limit,
         items=[DisciplinaResponse.model_validate(d) for d in items],
     )
+
+
+# ── Lookup endpoints (dropdowns) ───────────────
+
+@router.get("/disciplinas/lookup", response_model=list[DisciplinaLookupItem])
+async def lookup_disciplinas(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    curriculo_id: uuid.UUID | None = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=500),
+) -> list[DisciplinaLookupItem]:
+    """Lista simplificada de disciplinas para dropdowns."""
+    stmt = select(
+        Disciplina.id, Disciplina.nome, Disciplina.codigo, Disciplina.curriculo_id
+    ).where(
+        Disciplina.tenant_id == current_user.tenant_id,
+        Disciplina.deleted_at.is_(None),
+    )
+    if curriculo_id:
+        stmt = stmt.where(Disciplina.curriculo_id == curriculo_id)
+    stmt = stmt.order_by(Disciplina.nome).limit(limit)
+    result = await db.execute(stmt)
+    return [
+        DisciplinaLookupItem(
+            id=r.id, nome=r.nome, codigo=r.codigo, curriculo_id=r.curriculo_id
+        )
+        for r in result.all()
+    ]
+
+
+@router.get("/turmas/lookup", response_model=list[TurmaLookupItem])
+async def lookup_turmas(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    ano_letivo_id: uuid.UUID | None = Query(default=None),
+    classe: str | None = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=500),
+) -> list[TurmaLookupItem]:
+    """Lista simplificada de turmas para dropdowns."""
+    stmt = select(
+        Turma.id, Turma.nome, Turma.classe, Turma.turno, Turma.ano_letivo_id
+    ).where(
+        Turma.tenant_id == current_user.tenant_id,
+        Turma.deleted_at.is_(None),
+    )
+    if ano_letivo_id:
+        stmt = stmt.where(Turma.ano_letivo_id == ano_letivo_id)
+    if classe:
+        stmt = stmt.where(Turma.classe == classe)
+    stmt = stmt.order_by(Turma.nome).limit(limit)
+    result = await db.execute(stmt)
+    return [
+        TurmaLookupItem(
+            id=r.id,
+            nome=r.nome,
+            classe=r.classe,
+            turno=r.turno,
+            ano_letivo_id=r.ano_letivo_id,
+        )
+        for r in result.all()
+    ]
+
+
+@router.get("/curriculos/lookup", response_model=list[CurriculoLookupItem])
+async def lookup_curriculos(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(default=200, ge=1, le=500),
+) -> list[CurriculoLookupItem]:
+    """Lista simplificada de currículos para dropdowns."""
+    stmt = (
+        select(Curriculo.id, Curriculo.nivel, Curriculo.classe)
+        .where(
+            Curriculo.tenant_id == current_user.tenant_id,
+            Curriculo.deleted_at.is_(None),
+        )
+        .order_by(Curriculo.nivel, Curriculo.classe)
+        .limit(limit)
+    )
+    result = await db.execute(stmt)
+    return [
+        CurriculoLookupItem(
+            id=r.id, nome=f"{r.nivel} — {r.classe}", nivel=r.nivel, classe=r.classe
+        )
+        for r in result.all()
+    ]
 
 
 # ── Turmas ──────────────────────────────────────

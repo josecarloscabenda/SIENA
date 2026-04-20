@@ -13,6 +13,8 @@ import s from "@/shared/styles/common.module.css";
 
 interface StudentRow {
   aluno_id: string;
+  aluno_nome: string | null;
+  aluno_n_processo: string | null;
   notas: Record<string, number | null>; /* avaliacao_id → valor */
 }
 
@@ -70,16 +72,27 @@ export default function Pauta() {
             /* skip */
           }
         }
-        /* Build student rows */
-        const map = new Map<string, Record<string, number | null>>();
+        /* Build student rows keyed by aluno_id */
+        const nameMap = new Map<string, { nome: string | null; n_processo: string | null }>();
+        const notasMap = new Map<string, Record<string, number | null>>();
         for (const nota of allNotas) {
-          if (!map.has(nota.aluno_id)) map.set(nota.aluno_id, {});
-          map.get(nota.aluno_id)![nota.avaliacao_id] = nota.valor;
+          if (!notasMap.has(nota.aluno_id)) notasMap.set(nota.aluno_id, {});
+          notasMap.get(nota.aluno_id)![nota.avaliacao_id] = nota.valor;
+          if (!nameMap.has(nota.aluno_id)) {
+            nameMap.set(nota.aluno_id, {
+              nome: nota.aluno_nome,
+              n_processo: nota.aluno_n_processo,
+            });
+          }
         }
-        const rows: StudentRow[] = Array.from(map.entries()).map(([aluno_id, notas]) => ({
-          aluno_id,
-          notas,
-        }));
+        const rows: StudentRow[] = Array.from(notasMap.entries())
+          .map(([aluno_id, notas]) => ({
+            aluno_id,
+            aluno_nome: nameMap.get(aluno_id)?.nome ?? null,
+            aluno_n_processo: nameMap.get(aluno_id)?.n_processo ?? null,
+            notas,
+          }))
+          .sort((a, b) => (a.aluno_nome ?? "").localeCompare(b.aluno_nome ?? ""));
         setStudents(rows);
       })
       .catch(() => {
@@ -168,7 +181,8 @@ export default function Pauta() {
           <table>
             <thead>
               <tr>
-                <th>Aluno ID</th>
+                <th>Aluno</th>
+                <th>Nº Processo</th>
                 {avaliacoes.map((av) => (
                   <th key={av.id} style={{ textAlign: "center" }}>
                     {av.tipo}
@@ -183,7 +197,7 @@ export default function Pauta() {
             <tbody>
               {students.length === 0 ? (
                 <tr>
-                  <td colSpan={avaliacoes.length + 1}>
+                  <td colSpan={avaliacoes.length + 2}>
                     <p className={s.muted} style={{ textAlign: "center" }}>
                       Nenhuma nota registada.
                     </p>
@@ -192,9 +206,12 @@ export default function Pauta() {
               ) : (
                 students.map((st) => (
                   <tr key={st.aluno_id}>
-                    <td style={{ fontFamily: "monospace", fontSize: "0.75rem" }}>
-                      {st.aluno_id.substring(0, 8)}...
+                    <td>
+                      {st.aluno_nome || (
+                        <span className={s.muted}>Aluno {st.aluno_id.substring(0, 8)}</span>
+                      )}
                     </td>
+                    <td>{st.aluno_n_processo || <span className={s.muted}>—</span>}</td>
                     {avaliacoes.map((av) => (
                       <td key={av.id} style={{ textAlign: "center" }}>
                         {st.notas[av.id] != null ? (

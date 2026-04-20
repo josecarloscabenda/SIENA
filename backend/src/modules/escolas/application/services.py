@@ -1,5 +1,7 @@
 """Application services for the escolas module."""
 
+import re
+import unicodedata
 import uuid
 from datetime import date
 
@@ -10,6 +12,14 @@ from src.modules.directory.infrastructure.models import Pessoa
 from src.modules.escolas.infrastructure.models import AnoLetivo, ConfiguracaoEscola, Escola, Infraestrutura
 from src.modules.escolas.infrastructure.repository import EscolasRepository
 from src.modules.identity.infrastructure.models import Papel, Tenant, Utilizador, UtilizadorPapel
+
+
+def _slugify(text: str) -> str:
+    """Convert a string to a URL-friendly slug."""
+    normalized = unicodedata.normalize("NFKD", text)
+    ascii_text = normalized.encode("ascii", "ignore").decode("ascii").lower()
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_text).strip("-")
+    return slug or "escola"
 
 
 class EscolaService:
@@ -52,8 +62,20 @@ class EscolaService:
             if existing:
                 raise ValueError(f"Código SIGE '{codigo_sige}' já existe")
 
-        # 1. Create the Tenant
-        tenant = Tenant(nome=nome, estado="ativo", plano="basico")
+        # 1. Create the Tenant with unique slug
+        base_slug = _slugify(nome)
+        slug = base_slug
+        counter = 2
+        while True:
+            existing_slug = await self.db.execute(
+                select(Tenant.id).where(Tenant.slug == slug)
+            )
+            if existing_slug.scalar_one_or_none() is None:
+                break
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+
+        tenant = Tenant(nome=nome, slug=slug, estado="ativo", plano="basico")
         self.db.add(tenant)
         await self.db.flush()
 

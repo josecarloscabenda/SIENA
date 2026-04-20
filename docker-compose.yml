@@ -54,6 +54,7 @@ services:
     volumes:
       - ./backend/src:/app/src
       - ./backend/scripts:/app/scripts
+      - ./backend/migrations:/app/migrations
 
 volumes:
   postgres_data:

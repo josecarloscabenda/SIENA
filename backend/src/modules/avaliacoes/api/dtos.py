@@ -25,7 +25,9 @@ class AvaliacaoResponse(BaseModel):
     id: uuid.UUID
     tenant_id: uuid.UUID
     turma_id: uuid.UUID
+    turma_nome: str | None = None
     disciplina_id: uuid.UUID
+    disciplina_nome: str | None = None
     tipo: str
     periodo: int
     data: date
@@ -68,6 +70,8 @@ class NotaResponse(BaseModel):
     id: uuid.UUID
     avaliacao_id: uuid.UUID
     aluno_id: uuid.UUID
+    aluno_nome: str | None = None
+    aluno_n_processo: str | None = None
     valor: Decimal
     observacoes: str | None
     lancado_por: uuid.UUID
@@ -95,8 +99,11 @@ class FaltaResponse(BaseModel):
 
     id: uuid.UUID
     aluno_id: uuid.UUID
+    aluno_nome: str | None = None
     turma_id: uuid.UUID
+    turma_nome: str | None = None
     disciplina_id: uuid.UUID
+    disciplina_nome: str | None = None
     data: date
     tipo: str
     justificativa: str | None

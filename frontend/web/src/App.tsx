@@ -17,6 +17,9 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      {/* Pre-filled login URL per-school (shareable link) */}
+      <Route path="/escola/:slug/login" element={<Login />} />
+      <Route path="/escola/:slug" element={<Login />} />
 
       {/* Redirect root to the correct portal */}
       <Route

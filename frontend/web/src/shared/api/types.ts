@@ -5,6 +5,12 @@ export interface TokenResponse {
   expires_in: number;
 }
 
+export interface TenantPublicResponse {
+  id: string;
+  nome: string;
+  slug: string;
+}
+
 export interface UserResponse {
   id: string;
   tenant_id: string;
@@ -212,7 +218,10 @@ export interface MatriculaResponse {
   id: string;
   tenant_id: string;
   aluno_id: string;
+  aluno_nome: string | null;
+  aluno_n_processo: string | null;
   ano_letivo_id: string;
+  ano_letivo_designacao: string | null;
   classe: string;
   turno: string;
   estado: string;
@@ -266,6 +275,7 @@ export interface CurriculoResponse {
   nivel: string;
   classe: string;
   ano_letivo_id: string;
+  ano_letivo_designacao: string | null;
   carga_horaria_total: number;
   created_at: string;
 }
@@ -280,6 +290,7 @@ export interface DisciplinaResponse {
   nome: string;
   codigo: string;
   curriculo_id: string;
+  curriculo_nome: string | null;
   carga_horaria_semanal: number;
   created_at: string;
 }
@@ -291,8 +302,10 @@ export interface TurmaResponse {
   classe: string;
   turno: string;
   ano_letivo_id: string;
+  ano_letivo_designacao: string | null;
   capacidade_max: number;
   professor_regente_id: string;
+  professor_regente_nome: string | null;
   sala: string | null;
   created_at: string;
 }
@@ -305,7 +318,9 @@ export interface HorarioAulaResponse {
   id: string;
   turma_id: string;
   disciplina_id: string;
+  disciplina_nome: string | null;
   professor_id: string;
+  professor_nome: string | null;
   dia_semana: string;
   hora_inicio: string;
   hora_fim: string;
@@ -340,7 +355,9 @@ export interface AvaliacaoResponse {
   id: string;
   tenant_id: string;
   turma_id: string;
+  turma_nome: string | null;
   disciplina_id: string;
+  disciplina_nome: string | null;
   tipo: string;
   periodo: number;
   data: string;
@@ -353,6 +370,8 @@ export interface NotaResponse {
   id: string;
   avaliacao_id: string;
   aluno_id: string;
+  aluno_nome: string | null;
+  aluno_n_processo: string | null;
   valor: number;
   observacoes: string | null;
   lancado_por: string;
@@ -363,12 +382,74 @@ export interface NotaResponse {
 export interface FaltaResponse {
   id: string;
   aluno_id: string;
+  aluno_nome: string | null;
   turma_id: string;
+  turma_nome: string | null;
   disciplina_id: string;
+  disciplina_nome: string | null;
   data: string;
   tipo: string;
   justificativa: string | null;
   created_at: string;
+}
+
+// ── Lookup DTOs (dropdowns) ───────────────────
+
+export interface AlunoLookupItem {
+  id: string;
+  nome: string;
+  n_processo: string;
+}
+
+export interface ProfessorLookupItem {
+  id: string;
+  nome: string;
+  codigo_funcional: string;
+  especialidade: string;
+}
+
+export interface EncarregadoLookupItem {
+  id: string;
+  nome: string;
+  bi_identificacao: string;
+  telefone: string | null;
+}
+
+export interface DisciplinaLookupItem {
+  id: string;
+  nome: string;
+  codigo: string;
+  curriculo_id: string;
+}
+
+export interface TurmaLookupItem {
+  id: string;
+  nome: string;
+  classe: string;
+  turno: string;
+  ano_letivo_id: string;
+}
+
+export interface CurriculoLookupItem {
+  id: string;
+  nome: string;
+  nivel: string;
+  classe: string;
+}
+
+export interface AnoLetivoLookupItem {
+  id: string;
+  designacao: string;
+  ano: number;
+  ativo: boolean;
+  escola_id: string;
+}
+
+export interface EscolaLookupItem {
+  id: string;
+  nome: string;
+  provincia: string;
+  municipio: string;
 }
 
 export interface FaltaResumoResponse {

@@ -28,6 +28,7 @@ class CurriculoResponse(BaseModel):
     nivel: str
     classe: str
     ano_letivo_id: uuid.UUID
+    ano_letivo_designacao: str | None = None
     carga_horaria_total: int
     created_at: datetime
 
@@ -62,6 +63,7 @@ class DisciplinaResponse(BaseModel):
     nome: str
     codigo: str
     curriculo_id: uuid.UUID
+    curriculo_nome: str | None = None
     carga_horaria_semanal: int
     created_at: datetime
 
@@ -96,8 +98,10 @@ class TurmaResponse(BaseModel):
     classe: str
     turno: str
     ano_letivo_id: uuid.UUID
+    ano_letivo_designacao: str | None = None
     capacidade_max: int
     professor_regente_id: uuid.UUID
+    professor_regente_nome: str | None = None
     sala: str | None
     created_at: datetime
 
@@ -133,7 +137,9 @@ class HorarioAulaResponse(BaseModel):
     id: uuid.UUID
     turma_id: uuid.UUID
     disciplina_id: uuid.UUID
+    disciplina_nome: str | None = None
     professor_id: uuid.UUID
+    professor_nome: str | None = None
     dia_semana: str
     hora_inicio: time
     hora_fim: time
@@ -191,3 +197,29 @@ class DiarioListResponse(BaseModel):
     offset: int
     limit: int
     items: list[DiarioClasseResponse]
+
+
+# ──────────────────────────────────────────────
+# Lookup (para dropdowns em formulários)
+# ──────────────────────────────────────────────
+
+class DisciplinaLookupItem(BaseModel):
+    id: uuid.UUID
+    nome: str
+    codigo: str
+    curriculo_id: uuid.UUID
+
+
+class TurmaLookupItem(BaseModel):
+    id: uuid.UUID
+    nome: str
+    classe: str
+    turno: str
+    ano_letivo_id: uuid.UUID
+
+
+class CurriculoLookupItem(BaseModel):
+    id: uuid.UUID
+    nome: str
+    nivel: str
+    classe: str

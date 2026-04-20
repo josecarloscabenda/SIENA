@@ -178,7 +178,15 @@ export default function Turmas() {
             <div className={s.field}>
               <label className={s.label}>Professor Regente</label>
               <div style={{ padding: "10px 0", fontWeight: 500 }}>
-                {profMap.get(detailTurma.professor_regente_id) || detailTurma.professor_regente_id.slice(0, 8) + "..."}
+                {detailTurma.professor_regente_nome ||
+                  profMap.get(detailTurma.professor_regente_id) ||
+                  "—"}
+              </div>
+            </div>
+            <div className={s.field}>
+              <label className={s.label}>Ano Lectivo</label>
+              <div style={{ padding: "10px 0", fontWeight: 500 }}>
+                {detailTurma.ano_letivo_designacao || "—"}
               </div>
             </div>
             <div className={s.field}>
@@ -212,8 +220,8 @@ export default function Turmas() {
                     <tr key={h.id}>
                       <td style={{ fontWeight: 600 }}>{DIA_LABELS[h.dia_semana] || h.dia_semana}</td>
                       <td>{trimTime(h.hora_inicio)} - {trimTime(h.hora_fim)}</td>
-                      <td>{discMap.get(h.disciplina_id)?.nome || h.disciplina_id.slice(0, 8) + "..."}</td>
-                      <td>{profMap.get(h.professor_id) || h.professor_id.slice(0, 8) + "..."}</td>
+                      <td>{h.disciplina_nome || discMap.get(h.disciplina_id)?.nome || "—"}</td>
+                      <td>{h.professor_nome || profMap.get(h.professor_id) || "—"}</td>
                     </tr>
                   ))}
               </tbody>
@@ -346,7 +354,11 @@ export default function Turmas() {
                   </td>
                   <td>{turma.classe}</td>
                   <td>{turnoLabel[turma.turno] || turma.turno}</td>
-                  <td>{profMap.get(turma.professor_regente_id) || "—"}</td>
+                  <td>
+                    {turma.professor_regente_nome ||
+                      profMap.get(turma.professor_regente_id) ||
+                      "—"}
+                  </td>
                   <td>{turma.capacidade_max}</td>
                   <td>{turma.sala || "—"}</td>
                   <td>

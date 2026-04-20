@@ -220,3 +220,27 @@ class VinculoResponse(BaseModel):
     principal: bool
     created_at: datetime
     encarregado: EncarregadoResponse | None = None
+
+
+# ──────────────────────────────────────────────
+# Lookup (para dropdowns em formulários)
+# ──────────────────────────────────────────────
+
+class AlunoLookupItem(BaseModel):
+    id: uuid.UUID
+    nome: str
+    n_processo: str
+
+
+class ProfessorLookupItem(BaseModel):
+    id: uuid.UUID
+    nome: str
+    codigo_funcional: str
+    especialidade: str
+
+
+class EncarregadoLookupItem(BaseModel):
+    id: uuid.UUID
+    nome: str
+    bi_identificacao: str
+    telefone: str | None = None

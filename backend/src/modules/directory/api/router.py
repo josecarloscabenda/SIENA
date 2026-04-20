@@ -3,6 +3,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.common.auth.middleware import CurrentUser, get_current_user
 from src.common.auth.rbac import require_role
@@ -10,14 +11,17 @@ from src.common.database.session import get_db
 from src.modules.directory.api.dtos import (
     AlunoDetailResponse,
     AlunoListResponse,
+    AlunoLookupItem,
     AlunoResponse,
     CreateAlunoRequest,
     CreateEncarregadoRequest,
     CreateProfessorRequest,
     CreateVinculoRequest,
     EncarregadoListResponse,
+    EncarregadoLookupItem,
     EncarregadoResponse,
     ProfessorListResponse,
+    ProfessorLookupItem,
     ProfessorResponse,
     UpdateAlunoRequest,
     UpdateProfessorRequest,
@@ -31,6 +35,12 @@ from src.modules.directory.application.services import (
     NotFoundError,
     PessoaService,
     VinculoService,
+)
+from src.modules.directory.infrastructure.models import (
+    Aluno,
+    Encarregado,
+    Pessoa,
+    Professor,
 )
 
 router = APIRouter()
@@ -110,6 +120,109 @@ async def list_alunos(
         limit=limit,
         items=[AlunoResponse.model_validate(a) for a in alunos],
     )
+
+
+# ──────────────────────────────────────────────
+# Lookup endpoints (dropdowns em formulários)
+# ──────────────────────────────────────────────
+
+@router.get("/alunos/lookup", response_model=list[AlunoLookupItem])
+async def lookup_alunos(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    nome: str | None = Query(default=None, description="Filtra por nome (ILIKE)"),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> list[AlunoLookupItem]:
+    """Lista simplificada de alunos (id + nome + n_processo) para dropdowns."""
+    stmt = (
+        select(Aluno.id, Aluno.n_processo, Pessoa.nome_completo)
+        .join(Pessoa, Pessoa.id == Aluno.pessoa_id)
+        .where(
+            Aluno.tenant_id == current_user.tenant_id,
+            Aluno.deleted_at.is_(None),
+            Aluno.status == "ativo",
+        )
+    )
+    if nome:
+        stmt = stmt.where(Pessoa.nome_completo.ilike(f"%{nome}%"))
+    stmt = stmt.order_by(Pessoa.nome_completo).limit(limit)
+    result = await db.execute(stmt)
+    return [
+        AlunoLookupItem(id=r.id, nome=r.nome_completo, n_processo=r.n_processo)
+        for r in result.all()
+    ]
+
+
+@router.get("/professores/lookup", response_model=list[ProfessorLookupItem])
+async def lookup_professores(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    nome: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> list[ProfessorLookupItem]:
+    """Lista simplificada de professores para dropdowns."""
+    stmt = (
+        select(
+            Professor.id,
+            Professor.codigo_funcional,
+            Professor.especialidade,
+            Pessoa.nome_completo,
+        )
+        .join(Pessoa, Pessoa.id == Professor.pessoa_id)
+        .where(
+            Professor.tenant_id == current_user.tenant_id,
+            Professor.deleted_at.is_(None),
+        )
+    )
+    if nome:
+        stmt = stmt.where(Pessoa.nome_completo.ilike(f"%{nome}%"))
+    stmt = stmt.order_by(Pessoa.nome_completo).limit(limit)
+    result = await db.execute(stmt)
+    return [
+        ProfessorLookupItem(
+            id=r.id,
+            nome=r.nome_completo,
+            codigo_funcional=r.codigo_funcional,
+            especialidade=r.especialidade,
+        )
+        for r in result.all()
+    ]
+
+
+@router.get("/encarregados/lookup", response_model=list[EncarregadoLookupItem])
+async def lookup_encarregados(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    nome: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> list[EncarregadoLookupItem]:
+    """Lista simplificada de encarregados para dropdowns."""
+    stmt = (
+        select(
+            Encarregado.id,
+            Pessoa.nome_completo,
+            Pessoa.bi_identificacao,
+            Pessoa.telefone,
+        )
+        .join(Pessoa, Pessoa.id == Encarregado.pessoa_id)
+        .where(
+            Encarregado.tenant_id == current_user.tenant_id,
+            Encarregado.deleted_at.is_(None),
+        )
+    )
+    if nome:
+        stmt = stmt.where(Pessoa.nome_completo.ilike(f"%{nome}%"))
+    stmt = stmt.order_by(Pessoa.nome_completo).limit(limit)
+    result = await db.execute(stmt)
+    return [
+        EncarregadoLookupItem(
+            id=r.id,
+            nome=r.nome_completo,
+            bi_identificacao=r.bi_identificacao,
+            telefone=r.telefone,
+        )
+        for r in result.all()
+    ]
 
 
 @router.get("/alunos/{aluno_id}", response_model=AlunoDetailResponse)

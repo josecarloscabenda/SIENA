@@ -12,6 +12,7 @@ from src.modules.identity.api.dtos import (
     LoginRequest,
     PapelResponse,
     RefreshRequest,
+    TenantPublicResponse,
     TokenResponse,
     UpdateUserRequest,
     UserListResponse,
@@ -43,12 +44,38 @@ def _user_to_response(user) -> UserResponse:  # noqa: ANN001
 # ============================================================
 
 
+@router.get("/auth/tenants", response_model=list[TenantPublicResponse])
+async def list_public_tenants(
+    db: AsyncSession = Depends(get_db),
+) -> list[TenantPublicResponse]:
+    """Lista pública de escolas (tenants) activas para o selector na página de login."""
+    repo = IdentityRepository(db)
+    tenants = await repo.list_public_tenants()
+    return [TenantPublicResponse.model_validate(t) for t in tenants]
+
+
+@router.get("/auth/tenants/{slug}", response_model=TenantPublicResponse)
+async def get_public_tenant_by_slug(
+    slug: str,
+    db: AsyncSession = Depends(get_db),
+) -> TenantPublicResponse:
+    """Resolve slug de escola (URL-friendly) para info pública do tenant."""
+    repo = IdentityRepository(db)
+    tenant = await repo.get_tenant_by_slug(slug)
+    if tenant is None or tenant.estado != "ativo":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Escola não encontrada"
+        )
+    return TenantPublicResponse.model_validate(tenant)
+
+
 @router.post("/auth/login", response_model=TokenResponse)
 async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
-    """Authenticate user and return JWT tokens."""
+    """Authenticate user and return JWT tokens. Accepts tenant_id OR tenant_slug."""
     auth = AuthService(db)
     try:
-        result = await auth.login(body.username, body.password, body.tenant_id)
+        tenant_id = await auth.resolve_tenant_id(body.tenant_id, body.tenant_slug)
+        result = await auth.login(body.username, body.password, tenant_id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)) from e
     return TokenResponse(**result)

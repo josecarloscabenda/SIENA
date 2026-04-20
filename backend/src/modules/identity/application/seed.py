@@ -56,12 +56,20 @@ async def _seed_tenant_and_admin(session: AsyncSession) -> None:
     tenant = result.scalar_one_or_none()
 
     if tenant is None:
-        tenant = Tenant(nome="Escola Piloto SIENA", estado="ativo", plano="completo")
+        tenant = Tenant(
+            nome="Escola Piloto SIENA",
+            slug="escola-piloto",
+            estado="ativo",
+            plano="completo",
+        )
         session.add(tenant)
         await session.flush()
-        print(f"  Created tenant: {tenant.nome} (id: {tenant.id})")
+        print(f"  Created tenant: {tenant.nome} (slug: {tenant.slug}, id: {tenant.id})")
     else:
-        print(f"  Tenant already exists: {tenant.nome} (id: {tenant.id})")
+        if not getattr(tenant, "slug", None):
+            tenant.slug = "escola-piloto"
+            print(f"  Backfilled slug for tenant: {tenant.nome}")
+        print(f"  Tenant already exists: {tenant.nome} (slug: {tenant.slug}, id: {tenant.id})")
 
     # Check if super_admin exists
     result = await session.execute(

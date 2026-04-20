@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { Plus, ClipboardList, Check, X } from "lucide-react";
 import api from "@/shared/api/client";
-import type { MatriculaResponse, PaginatedResponse } from "@/shared/api/types";
+import type {
+  AlunoLookupItem,
+  AnoLetivoLookupItem,
+  MatriculaResponse,
+  PaginatedResponse,
+} from "@/shared/api/types";
 import { useAuth } from "@/shared/hooks/useAuth";
 import s from "@/shared/styles/common.module.css";
 
@@ -53,6 +58,8 @@ export default function Matriculas() {
   const [error, setError] = useState("");
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectMotivo, setRejectMotivo] = useState("");
+  const [alunos, setAlunos] = useState<AlunoLookupItem[]>([]);
+  const [anosLetivos, setAnosLetivos] = useState<AnoLetivoLookupItem[]>([]);
 
   const canManage = hasRole("super_admin", "diretor", "secretaria");
 
@@ -78,6 +85,16 @@ export default function Matriculas() {
     setForm(emptyForm);
     setShowForm(true);
     setError("");
+    // Carregar lookups
+    Promise.all([
+      api.get<AlunoLookupItem[]>("/alunos/lookup?limit=500"),
+      api.get<AnoLetivoLookupItem[]>("/anos-letivos/lookup"),
+    ])
+      .then(([aRes, aLetRes]) => {
+        setAlunos(aRes.data);
+        setAnosLetivos(aLetRes.data);
+      })
+      .catch(() => {});
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -136,12 +153,36 @@ export default function Matriculas() {
         <form className={s.form} onSubmit={handleSubmit}>
           <div className={s.formGrid}>
             <div className={s.field}>
-              <label className={s.label}>Aluno ID</label>
-              <input className={s.input} required placeholder="UUID do aluno" value={form.aluno_id} onChange={(e) => setForm({ ...form, aluno_id: e.target.value })} />
+              <label className={s.label}>Aluno</label>
+              <select
+                className={s.input}
+                required
+                value={form.aluno_id}
+                onChange={(e) => setForm({ ...form, aluno_id: e.target.value })}
+              >
+                <option value="">Seleccione um aluno...</option>
+                {alunos.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.nome} — Nº {a.n_processo}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className={s.field}>
-              <label className={s.label}>Ano Lectivo ID</label>
-              <input className={s.input} required placeholder="UUID do ano lectivo" value={form.ano_letivo_id} onChange={(e) => setForm({ ...form, ano_letivo_id: e.target.value })} />
+              <label className={s.label}>Ano Lectivo</label>
+              <select
+                className={s.input}
+                required
+                value={form.ano_letivo_id}
+                onChange={(e) => setForm({ ...form, ano_letivo_id: e.target.value })}
+              >
+                <option value="">Seleccione o ano lectivo...</option>
+                {anosLetivos.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.designacao} {a.ativo ? "(activo)" : ""}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className={s.field}>
               <label className={s.label}>Classe</label>
@@ -231,7 +272,9 @@ export default function Matriculas() {
           <table>
             <thead>
               <tr>
-                <th>Aluno ID</th>
+                <th>Aluno</th>
+                <th>Nº Processo</th>
+                <th>Ano Lectivo</th>
                 <th>Classe</th>
                 <th>Turno</th>
                 <th>Estado</th>
@@ -245,9 +288,11 @@ export default function Matriculas() {
                   <td>
                     <div className={s.nameCell}>
                       <ClipboardList size={16} />
-                      {mat.aluno_id.slice(0, 8)}...
+                      {mat.aluno_nome || <span className={s.muted}>Aluno {mat.aluno_id.slice(0, 8)}</span>}
                     </div>
                   </td>
+                  <td>{mat.aluno_n_processo || <span className={s.muted}>—</span>}</td>
+                  <td>{mat.ano_letivo_designacao || <span className={s.muted}>—</span>}</td>
                   <td>{mat.classe}</td>
                   <td>{turnoLabel[mat.turno] || mat.turno}</td>
                   <td>
