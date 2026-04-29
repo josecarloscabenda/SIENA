@@ -13,6 +13,7 @@ from src.common.database.session import engine
 from src.modules.academico.api.router import router as academico_router
 from src.modules.avaliacoes.api.import_router import router as avaliacoes_import_router
 from src.modules.avaliacoes.api.router import router as avaliacoes_router
+from src.modules.dashboard.api.router import router as dashboard_router
 from src.modules.directory.api.import_router import router as directory_import_router
 from src.modules.directory.api.router import router as directory_router
 from src.modules.enrollment.api.router import router as enrollment_router
@@ -108,5 +109,6 @@ app.include_router(directory_router, prefix="/api/v1", tags=["Directory"])
 app.include_router(enrollment_router, prefix="/api/v1", tags=["Enrollment"])
 app.include_router(academico_router, prefix="/api/v1", tags=["Academico"])
 app.include_router(avaliacoes_router, prefix="/api/v1", tags=["Avaliacoes"])
+app.include_router(dashboard_router, prefix="/api/v1", tags=["Dashboard"])
 app.include_router(directory_import_router, prefix="/api/v1", tags=["Import"])
 app.include_router(avaliacoes_import_router, prefix="/api/v1", tags=["Import"])

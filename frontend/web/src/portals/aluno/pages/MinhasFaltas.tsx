@@ -15,25 +15,31 @@ export default function MinhasFaltas() {
   const [error, setError] = useState("");
   const [filtro, setFiltro] = useState<FiltroTipo>("all");
 
+  const alunoId = user?.aluno_id;
+
   useEffect(() => {
-    if (!user?.id) return;
+    if (!alunoId) {
+      setLoading(false);
+      setError("O seu perfil de aluno ainda não está associado.");
+      return;
+    }
 
     setLoading(true);
     setError("");
 
     Promise.all([
-      api.get<FaltaResponse[]>(`/alunos/${user.id}/faltas`),
-      api.get<FaltaResumoResponse>(`/alunos/${user.id}/faltas/resumo`),
+      api.get<FaltaResponse[]>(`/alunos/${alunoId}/faltas`),
+      api.get<FaltaResumoResponse>(`/alunos/${alunoId}/faltas/resumo`),
     ])
       .then(([faltasRes, resumoRes]) => {
         setFaltas(faltasRes.data);
         setResumo(resumoRes.data);
       })
       .catch(() => {
-        setError("Nao foi possivel carregar as faltas. O seu perfil podera ainda nao estar associado.");
+        setError("Não foi possível carregar as faltas.");
       })
       .finally(() => setLoading(false));
-  }, [user?.id]);
+  }, [alunoId]);
 
   const filteredFaltas =
     filtro === "all"

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FileText } from "lucide-react";
+import { FileText, Award } from "lucide-react";
 import api from "@/shared/api/client";
 import type { BoletimResponse } from "@/shared/api/types";
 import { useAuth } from "@/shared/hooks/useAuth";
@@ -12,21 +12,27 @@ export default function Boletim() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const alunoId = user?.aluno_id;
+
   useEffect(() => {
-    if (!user?.id) return;
+    if (!alunoId) {
+      setLoading(false);
+      setError("O seu perfil de aluno ainda não está associado.");
+      return;
+    }
 
     setLoading(true);
     setError("");
 
     api
-      .get<BoletimResponse>(`/alunos/${user.id}/boletim?periodo=${periodo}`)
+      .get<BoletimResponse>(`/alunos/${alunoId}/boletim?periodo=${periodo}`)
       .then((res) => setBoletim(res.data))
       .catch(() => {
         setBoletim(null);
-        setError("Nao foi possivel carregar o boletim. O seu perfil podera ainda nao estar associado.");
+        setError("Não foi possível carregar o boletim.");
       })
       .finally(() => setLoading(false));
-  }, [user?.id, periodo]);
+  }, [alunoId, periodo]);
 
   return (
     <div>
@@ -45,7 +51,7 @@ export default function Boletim() {
             className={`${s.tab} ${periodo === p ? s.tabActive : ""}`}
             onClick={() => setPeriodo(p)}
           >
-            {p}o Periodo
+            {p}.º Período
           </button>
         ))}
       </div>
@@ -64,43 +70,76 @@ export default function Boletim() {
           <div className={s.emptyIcon}>
             <FileText size={48} />
           </div>
-          <p>Sem dados de boletim para o {periodo}o periodo.</p>
+          <p>Sem dados de boletim para o {periodo}.º período.</p>
         </div>
       ) : (
-        <div className={s.table}>
-          <table>
-            <thead>
-              <tr>
-                <th>Disciplina</th>
-                <th>Media</th>
-                <th>Faltas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {boletim.disciplinas.map((disc) => (
-                <tr key={disc.disciplina_id}>
-                  <td>
-                    <span className={s.nameCell}>{disc.disciplina_nome}</span>
-                  </td>
-                  <td>
-                    {disc.media !== null ? (
-                      <span
-                        className={`${s.badge} ${
-                          disc.media >= 10 ? s.badgeGreen : s.badgeRed
-                        }`}
-                      >
-                        {disc.media.toFixed(1)}
-                      </span>
-                    ) : (
-                      <span className={`${s.badge} ${s.badgeGray}`}>--</span>
-                    )}
-                  </td>
-                  <td>{disc.faltas_total}</td>
+        <>
+          <div className={s.table}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Disciplina</th>
+                  <th>Média</th>
+                  <th>Faltas</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {boletim.disciplinas.map((disc) => {
+                  const m = disc.media !== null ? Number(disc.media) : null;
+                  return (
+                    <tr key={disc.disciplina_id}>
+                      <td>
+                        <span className={s.nameCell}>{disc.disciplina_nome}</span>
+                      </td>
+                      <td>
+                        {m !== null ? (
+                          <span
+                            className={`${s.badge} ${
+                              m >= 10 ? s.badgeGreen : s.badgeRed
+                            }`}
+                          >
+                            {m.toFixed(2)}
+                          </span>
+                        ) : (
+                          <span className={`${s.badge} ${s.badgeGray}`}>—</span>
+                        )}
+                      </td>
+                      <td>{disc.faltas_total}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Resumo médio do período */}
+          {(() => {
+            const validas = boletim.disciplinas
+              .map((d) => (d.media !== null ? Number(d.media) : null))
+              .filter((m): m is number => m !== null);
+            if (validas.length === 0) return null;
+            const mediaPeriodo =
+              validas.reduce((a, b) => a + b, 0) / validas.length;
+            return (
+              <div className={s.section} style={{ marginTop: 16 }}>
+                <p style={{ fontSize: "1rem" }}>
+                  <Award
+                    size={18}
+                    style={{ verticalAlign: "middle", marginRight: 8, color: "#1A3F7A" }}
+                  />
+                  Média do período:{" "}
+                  <strong
+                    className={`${s.badge} ${
+                      mediaPeriodo >= 10 ? s.badgeGreen : s.badgeRed
+                    }`}
+                  >
+                    {mediaPeriodo.toFixed(2)}
+                  </strong>
+                </p>
+              </div>
+            );
+          })()}
+        </>
       )}
     </div>
   );

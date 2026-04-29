@@ -499,6 +499,123 @@ export interface AlunoEncarregadoItem {
   principal: boolean;
 }
 
+// ── Sprint 3: Dashboards ─────────────────────────
+
+export interface GestaoStats {
+  total_alunos: number;
+  total_alunos_ativos: number;
+  total_professores: number;
+  total_encarregados: number;
+  total_turmas: number;
+  total_disciplinas: number;
+  matriculas_pendentes: number;
+  matriculas_aprovadas: number;
+  matriculas_rejeitadas: number;
+  avaliacoes_total: number;
+  notas_lancadas: number;
+  faltas_periodo_atual: number;
+}
+
+export interface ProximaAulaItem {
+  horario_id: string;
+  turma_id: string;
+  turma_nome: string;
+  disciplina_id: string;
+  disciplina_nome: string;
+  dia_semana: string;
+  hora_inicio: string;
+  hora_fim: string;
+}
+
+export interface TurmaResumoProfessor {
+  turma_id: string;
+  nome: string;
+  classe: string;
+  turno: string;
+  is_regente: boolean;
+  leciona_disciplinas: number;
+  total_alunos: number;
+}
+
+export interface ProfessorStats {
+  professor_id: string;
+  nome: string;
+  turmas_atribuidas: number;
+  disciplinas_lecciona: number;
+  total_alunos: number;
+  notas_por_lancar: number;
+  proximas_aulas: ProximaAulaItem[];
+  turmas: TurmaResumoProfessor[];
+}
+
+export interface AlunoDisciplinaResumo {
+  disciplina_id: string;
+  disciplina_nome: string;
+  media: string | null;
+  faltas: number;
+}
+
+export interface ProximaAvaliacaoItem {
+  avaliacao_id: string;
+  disciplina_id: string;
+  disciplina_nome: string;
+  tipo: string;
+  data: string;
+  nota_maxima: number;
+}
+
+export interface AlunoStats {
+  aluno_id: string;
+  nome: string;
+  n_processo: string;
+  matricula_id: string | null;
+  classe: string | null;
+  turma_id: string | null;
+  turma_nome: string | null;
+  media_geral: string | null;
+  total_faltas: number;
+  faltas_justificadas: number;
+  faltas_injustificadas: number;
+  proximas_avaliacoes: ProximaAvaliacaoItem[];
+  disciplinas: AlunoDisciplinaResumo[];
+}
+
+export interface EducandoResumo {
+  aluno_id: string;
+  nome: string;
+  n_processo: string;
+  classe: string | null;
+  turma_nome: string | null;
+  media_geral: string | null;
+  total_faltas: number;
+  faltas_injustificadas: number;
+}
+
+export interface EncarregadoStats {
+  encarregado_id: string;
+  nome: string;
+  educandos: EducandoResumo[];
+}
+
+export interface PautaAlunoLinha {
+  aluno_id: string;
+  matricula_id: string;
+  nome: string;
+  n_processo: string;
+  medias_por_disciplina: Record<string, string | null>;
+  media_geral: string | null;
+}
+
+export interface PautaResponse {
+  turma_id: string;
+  turma_nome: string;
+  classe: string;
+  ano_letivo_designacao: string | null;
+  periodo: number;
+  disciplinas: { id: string; nome: string; codigo: string }[];
+  linhas: PautaAlunoLinha[];
+}
+
 export interface FaltaResumoResponse {
   total: number;
   justificadas: number;
