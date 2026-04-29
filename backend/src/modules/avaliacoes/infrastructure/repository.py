@@ -205,6 +205,7 @@ class AvaliacoesRepository:
     ) -> list[Nota]:
         stmt = (
             select(Nota)
+            .options(selectinload(Nota.avaliacao))
             .join(Nota.avaliacao)
             .where(
                 Nota.aluno_id == aluno_id,

@@ -501,6 +501,14 @@ curl -s -H "$H" "http://localhost:8000/api/v1/turmas/$TURMA/pauta?periodo=1" | p
 
 > Anota aqui qualquer comportamento inesperado durante o teste. Format livre.
 
+### Sessão 2026-04-29 — Primeira execução do playbook
+
+- [x] **`GET /alunos/{id}/boletim` retornava HTTP 500** — `MissingGreenlet` em `BoletimService.gerar_boletim`. Causa: `list_notas_aluno` não fazia eager-load de `Nota.avaliacao`, e o serviço acedia `n.avaliacao.peso` → lazy-load proibido em async.
+  **Fix:** `selectinload(Nota.avaliacao)` no repo + helper para resolver nomes de disciplinas + `ano_letivo_id` no payload (estava em falta no DTO obrigatório).
+  Ficheiros: [avaliacoes/infrastructure/repository.py](backend/src/modules/avaliacoes/infrastructure/repository.py), [avaliacoes/application/services.py](backend/src/modules/avaliacoes/application/services.py).
+
+### Sessão N — (template para próximas execuções)
+
 ```
 - [ ] (data) Página X: bug Y. Reprodução: ...
 ```

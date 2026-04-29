@@ -210,8 +210,35 @@ class BoletimService:
         for f in faltas:
             disc_faltas[f.disciplina_id] = disc_faltas.get(f.disciplina_id, 0) + 1
 
-        disciplinas = []
+        # Resolver nomes de disciplinas numa só query
         all_disc_ids = set(disc_notas.keys()) | set(disc_faltas.keys())
+        disc_nomes: dict[uuid.UUID, str] = {}
+        if all_disc_ids:
+            from src.modules.academico.infrastructure.models import Disciplina
+            from sqlalchemy import select as _select
+            rows = (
+                await self.db.execute(
+                    _select(Disciplina.id, Disciplina.nome).where(
+                        Disciplina.id.in_(all_disc_ids)
+                    )
+                )
+            ).all()
+            disc_nomes = {r.id: r.nome for r in rows}
+
+        # Determinar ano_letivo activo (campo obrigatório no BoletimResponse)
+        from src.modules.escolas.infrastructure.models import AnoLetivo
+        from sqlalchemy import select as _select
+        ano_letivo_id = (
+            await self.db.execute(
+                _select(AnoLetivo.id).where(
+                    AnoLetivo.tenant_id == tenant_id,
+                    AnoLetivo.ativo.is_(True),
+                    AnoLetivo.deleted_at.is_(None),
+                )
+            )
+        ).scalar_one_or_none()
+
+        disciplinas = []
         for disc_id in all_disc_ids:
             notas_disc = disc_notas.get(disc_id, [])
             if notas_disc:
@@ -226,14 +253,18 @@ class BoletimService:
                 media = None
 
             disciplinas.append({
-                "disciplina_id": str(disc_id),
-                "disciplina_nome": "",  # Would need join for name
-                "media": float(media) if media is not None else None,
+                "disciplina_id": disc_id,
+                "disciplina_nome": disc_nomes.get(disc_id, "—"),
+                "media": media,
                 "faltas_total": disc_faltas.get(disc_id, 0),
             })
 
+        # Ordenar por nome
+        disciplinas.sort(key=lambda d: d["disciplina_nome"])
+
         return {
-            "aluno_id": str(aluno_id),
+            "aluno_id": aluno_id,
+            "ano_letivo_id": ano_letivo_id,
             "periodo": periodo,
             "disciplinas": disciplinas,
         }
