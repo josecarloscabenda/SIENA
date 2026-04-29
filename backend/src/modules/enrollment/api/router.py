@@ -28,6 +28,7 @@ from src.modules.enrollment.application.services import (
     EnrollmentError,
     InvalidStateError,
     MatriculaService,
+    MissingEncarregadoError,
     NotFoundError,
     TransferenciaService,
 )
@@ -40,6 +41,8 @@ def _handle_enrollment_error(e: EnrollmentError) -> HTTPException:
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     if isinstance(e, (DuplicateMatriculaError, DuplicateAlocacaoError)):
         return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    if isinstance(e, MissingEncarregadoError):
+        return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
     if isinstance(e, InvalidStateError):
         return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

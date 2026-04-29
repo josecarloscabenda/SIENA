@@ -2,7 +2,7 @@
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from src.modules.identity.infrastructure.models import Papel, Tenant, Utilizador, UtilizadorPapel
@@ -63,23 +63,20 @@ class IdentityRepository:
         return result.scalar_one_or_none()
 
     async def list_users(self, tenant_id: uuid.UUID, offset: int = 0, limit: int = 20) -> tuple[list[Utilizador], int]:
-        base = select(Utilizador).where(
+        filters = (
             Utilizador.tenant_id == tenant_id,
             Utilizador.deleted_at.is_(None),
         )
-        count_result = await self.session.execute(
-            select(Utilizador.id).where(
-                Utilizador.tenant_id == tenant_id,
-                Utilizador.deleted_at.is_(None),
-            )
-        )
-        total = len(count_result.all())
+        count_stmt = select(func.count(Utilizador.id)).where(*filters)
+        total = (await self.session.execute(count_stmt)).scalar_one()
 
         stmt = (
-            base.options(selectinload(Utilizador.papeis).selectinload(UtilizadorPapel.papel))
+            select(Utilizador)
+            .where(*filters)
+            .options(selectinload(Utilizador.papeis).selectinload(UtilizadorPapel.papel))
+            .order_by(Utilizador.nome_completo)
             .offset(offset)
             .limit(limit)
-            .order_by(Utilizador.nome_completo)
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all()), total

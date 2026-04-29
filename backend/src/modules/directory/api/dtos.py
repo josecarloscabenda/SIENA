@@ -244,3 +244,17 @@ class EncarregadoLookupItem(BaseModel):
     nome: str
     bi_identificacao: str
     telefone: str | None = None
+
+
+class AlunoEncarregadoItem(BaseModel):
+    """Encarregado vinculado a um aluno (com tipo e flag principal)."""
+
+    encarregado_id: uuid.UUID
+    pessoa_id: uuid.UUID
+    nome: str
+    bi_identificacao: str
+    telefone: str | None = None
+    email: str | None = None
+    profissao: str | None = None
+    tipo: str
+    principal: bool

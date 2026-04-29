@@ -29,6 +29,10 @@ class MatriculaService:
         turno: str = "matutino",
         observacoes: str | None = None,
     ) -> Matricula:
+        # Validar que o aluno tem pelo menos 1 encarregado vinculado
+        if not await self.repo.aluno_has_encarregado(aluno_id, tenant_id):
+            raise MissingEncarregadoError()
+
         # Validar duplicado: aluno não pode ter 2 matrículas no mesmo ano
         existing = await self.repo.get_matricula_existente(
             tenant_id, aluno_id, ano_letivo_id
@@ -243,3 +247,11 @@ class DuplicateMatriculaError(EnrollmentError):
 class DuplicateAlocacaoError(EnrollmentError):
     def __init__(self) -> None:
         super().__init__("Esta matrícula já tem alocação em turma")
+
+
+class MissingEncarregadoError(EnrollmentError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Aluno não tem encarregado de educação vinculado — "
+            "registe pelo menos 1 encarregado antes de criar matrícula"
+        )

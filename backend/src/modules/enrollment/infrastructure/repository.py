@@ -5,7 +5,7 @@ import uuid
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from src.modules.directory.infrastructure.models import Aluno, Pessoa
+from src.modules.directory.infrastructure.models import Aluno, Pessoa, VinculoAlunoEncarregado
 from src.modules.enrollment.infrastructure.models import (
     AlocacaoTurma,
     DocumentoMatricula,
@@ -132,6 +132,22 @@ class EnrollmentRepository:
         await self.db.flush()
         await self.db.refresh(matricula)
         return matricula
+
+    async def aluno_has_encarregado(
+        self, aluno_id: uuid.UUID, tenant_id: uuid.UUID
+    ) -> bool:
+        """True se o aluno tem pelo menos 1 vínculo activo a um encarregado."""
+        stmt = (
+            select(func.count(VinculoAlunoEncarregado.id))
+            .where(
+                VinculoAlunoEncarregado.aluno_id == aluno_id,
+                VinculoAlunoEncarregado.tenant_id == tenant_id,
+                VinculoAlunoEncarregado.deleted_at.is_(None),
+            )
+        )
+        result = await self.db.execute(stmt)
+        count = result.scalar_one()
+        return count > 0
 
     # ── Alocação ────────────────────────────────
 

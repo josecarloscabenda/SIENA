@@ -10,6 +10,7 @@ from src.common.auth.rbac import require_role
 from src.common.database.session import get_db
 from src.modules.directory.api.dtos import (
     AlunoDetailResponse,
+    AlunoEncarregadoItem,
     AlunoListResponse,
     AlunoLookupItem,
     AlunoResponse,
@@ -41,6 +42,7 @@ from src.modules.directory.infrastructure.models import (
     Encarregado,
     Pessoa,
     Professor,
+    VinculoAlunoEncarregado,
 )
 
 router = APIRouter()
@@ -149,6 +151,63 @@ async def lookup_alunos(
     result = await db.execute(stmt)
     return [
         AlunoLookupItem(id=r.id, nome=r.nome_completo, n_processo=r.n_processo)
+        for r in result.all()
+    ]
+
+
+@router.get("/alunos/{aluno_id}/encarregados", response_model=list[AlunoEncarregadoItem])
+async def list_encarregados_aluno(
+    aluno_id: uuid.UUID,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[AlunoEncarregadoItem]:
+    """Lista os encarregados vinculados a um aluno (com tipo e flag principal)."""
+    aluno = await db.execute(
+        select(Aluno.id).where(
+            Aluno.id == aluno_id,
+            Aluno.tenant_id == current_user.tenant_id,
+            Aluno.deleted_at.is_(None),
+        )
+    )
+    if aluno.scalar_one_or_none() is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aluno não encontrado")
+
+    stmt = (
+        select(
+            Encarregado.id.label("encarregado_id"),
+            Pessoa.id.label("pessoa_id"),
+            Pessoa.nome_completo,
+            Pessoa.bi_identificacao,
+            Pessoa.telefone,
+            Pessoa.email,
+            Encarregado.profissao,
+            VinculoAlunoEncarregado.tipo,
+            VinculoAlunoEncarregado.principal,
+        )
+        .join(Encarregado, Encarregado.id == VinculoAlunoEncarregado.encarregado_id)
+        .join(Pessoa, Pessoa.id == Encarregado.pessoa_id)
+        .where(
+            VinculoAlunoEncarregado.aluno_id == aluno_id,
+            VinculoAlunoEncarregado.tenant_id == current_user.tenant_id,
+            VinculoAlunoEncarregado.deleted_at.is_(None),
+            Encarregado.deleted_at.is_(None),
+            Pessoa.deleted_at.is_(None),
+        )
+        .order_by(VinculoAlunoEncarregado.principal.desc(), Pessoa.nome_completo)
+    )
+    result = await db.execute(stmt)
+    return [
+        AlunoEncarregadoItem(
+            encarregado_id=r.encarregado_id,
+            pessoa_id=r.pessoa_id,
+            nome=r.nome_completo,
+            bi_identificacao=r.bi_identificacao,
+            telefone=r.telefone,
+            email=r.email,
+            profissao=r.profissao,
+            tipo=r.tipo,
+            principal=r.principal,
+        )
         for r in result.all()
     ]
 
