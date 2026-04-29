@@ -6,7 +6,12 @@ from datetime import date
 
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from src.modules.escolas.infrastructure.models import ConfiguracaoEscola, Escola, Infraestrutura
+from src.modules.escolas.infrastructure.models import (
+    AnoLetivo,
+    ConfiguracaoEscola,
+    Escola,
+    Infraestrutura,
+)
 
 
 async def seed_escolas(session: AsyncSession) -> None:
@@ -24,8 +29,33 @@ async def seed_escolas(session: AsyncSession) -> None:
     existing = await session.execute(
         select(Escola).where(Escola.tenant_id == tenant_id, Escola.deleted_at.is_(None))
     )
-    if existing.first():
-        print("Escolas seed: escola already exists, skipping.")
+    existing_escola = existing.scalar_one_or_none()
+    if existing_escola is not None:
+        # Backfill ano_letivo if missing (older DBs created without it)
+        ano_check = await session.execute(
+            select(AnoLetivo).where(
+                AnoLetivo.escola_id == existing_escola.id,
+                AnoLetivo.deleted_at.is_(None),
+            )
+        )
+        if ano_check.first() is None:
+            session.add(
+                AnoLetivo(
+                    tenant_id=tenant_id,
+                    escola_id=existing_escola.id,
+                    ano=2026,
+                    designacao="2026/2027",
+                    data_inicio=date(2026, 9, 1),
+                    data_fim=date(2027, 7, 31),
+                    ativo=True,
+                )
+            )
+            await session.commit()
+            print(
+                f"Escolas seed: escola existed without ano_letivo — backfilled '2026/2027' (ativo)."
+            )
+        else:
+            print("Escolas seed: escola already exists, skipping.")
         return
 
     # Create escola
@@ -57,6 +87,18 @@ async def seed_escolas(session: AsyncSession) -> None:
     )
     session.add(config)
 
+    # Create default active ano_letivo (required by enrollment + academico seeds)
+    ano_letivo = AnoLetivo(
+        tenant_id=tenant_id,
+        escola_id=escola.id,
+        ano=2026,
+        designacao="2026/2027",
+        data_inicio=date(2026, 9, 1),
+        data_fim=date(2027, 7, 31),
+        ativo=True,
+    )
+    session.add(ano_letivo)
+
     # Create infraestruturas
     infras = [
         Infraestrutura(
@@ -84,7 +126,10 @@ async def seed_escolas(session: AsyncSession) -> None:
         session.add(infra)
 
     await session.commit()
-    print(f"Escolas seed: created escola '{escola.nome}' with {len(infras)} infraestruturas.")
+    print(
+        f"Escolas seed: created escola '{escola.nome}' with {len(infras)} infraestruturas "
+        f"and ano_letivo '{ano_letivo.designacao}' (ativo)."
+    )
 
 
 async def main() -> None:
