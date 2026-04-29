@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Plus, Clock } from "lucide-react";
 import api from "@/shared/api/client";
+import EntitySelect from "@/shared/components/EntitySelect";
 import type {
   TurmaResponse,
   HorarioAulaResponse,
-  DisciplinaResponse,
-  ProfessorResponse,
+  DisciplinaLookupItem,
+  ProfessorLookupItem,
   PaginatedResponse,
 } from "@/shared/api/types";
 import { useAuth } from "@/shared/hooks/useAuth";
@@ -41,8 +42,6 @@ export default function Horarios() {
   const [turmas, setTurmas] = useState<TurmaResponse[]>([]);
   const [selectedTurma, setSelectedTurma] = useState("");
   const [horarios, setHorarios] = useState<HorarioAulaResponse[]>([]);
-  const [disciplinas, setDisciplinas] = useState<DisciplinaResponse[]>([]);
-  const [professores, setProfessores] = useState<ProfessorResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
@@ -55,21 +54,10 @@ export default function Horarios() {
     hora_fim: "08:15",
   });
 
-  /* Discipline map for display */
-  const discMap = new Map(disciplinas.map((d) => [d.id, d.nome]));
-
   useEffect(() => {
     api
       .get<PaginatedResponse<TurmaResponse>>("/turmas?limit=100")
       .then(({ data }) => setTurmas(data.items))
-      .catch(() => {});
-    api
-      .get<PaginatedResponse<DisciplinaResponse>>("/disciplinas?offset=0&limit=100")
-      .then(({ data }) => setDisciplinas(data.items))
-      .catch(() => {});
-    api
-      .get<PaginatedResponse<ProfessorResponse>>("/professores?offset=0&limit=100")
-      .then(({ data }) => setProfessores(data.items))
       .catch(() => {});
   }, []);
 
@@ -158,29 +146,26 @@ export default function Horarios() {
           <div className={s.formGrid}>
             <div className={s.field}>
               <label className={s.label}>Disciplina</label>
-              <select
-                className={s.input}
+              <EntitySelect<DisciplinaLookupItem>
+                endpoint="/disciplinas/lookup"
                 value={form.disciplina_id}
-                onChange={(e) => setForm({ ...form, disciplina_id: e.target.value })}
-              >
-                <option value="">Selecionar...</option>
-                {disciplinas.map((d) => (
-                  <option key={d.id} value={d.id}>{d.nome} ({d.codigo})</option>
-                ))}
-              </select>
+                onChange={(id) => setForm({ ...form, disciplina_id: id })}
+                getLabel={(d) => `${d.nome} (${d.codigo})`}
+                placeholder="Pesquise disciplina..."
+                required
+              />
             </div>
             <div className={s.field}>
               <label className={s.label}>Professor</label>
-              <select
-                className={s.input}
+              <EntitySelect<ProfessorLookupItem>
+                endpoint="/professores/lookup"
                 value={form.professor_id}
-                onChange={(e) => setForm({ ...form, professor_id: e.target.value })}
-              >
-                <option value="">Selecionar...</option>
-                {professores.map((p) => (
-                  <option key={p.id} value={p.id}>{p.pessoa.nome_completo}</option>
-                ))}
-              </select>
+                onChange={(id) => setForm({ ...form, professor_id: id })}
+                getLabel={(p) => p.nome}
+                getSecondary={(p) => `${p.codigo_funcional} · ${p.especialidade}`}
+                placeholder="Pesquise professor..."
+                required
+              />
             </div>
             <div className={s.field}>
               <label className={s.label}>Dia da Semana</label>
@@ -251,9 +236,7 @@ export default function Horarios() {
                     {lesson && (
                       <div className={s.scheduleItem}>
                         <div className={s.scheduleItemName}>
-                          {lesson.disciplina_nome ||
-                            discMap.get(lesson.disciplina_id) ||
-                            "—"}
+                          {lesson.disciplina_nome || "—"}
                         </div>
                         {lesson.professor_nome && (
                           <div className={s.scheduleItemSub}>

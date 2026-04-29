@@ -1,0 +1,169 @@
+.wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.hidden {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 1px;
+  height: 1px;
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.95rem;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.trigger:hover:not(.triggerDisabled) {
+  border-color: #1A3F7A;
+}
+
+.trigger:focus-visible {
+  outline: none;
+  border-color: #1A3F7A;
+  box-shadow: 0 0 0 3px rgba(26, 63, 122, 0.15);
+}
+
+.triggerDisabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.placeholder {
+  color: #9ca3af;
+}
+
+.selectedLabel {
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.chevron {
+  color: #6b7280;
+}
+
+.clearBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 4px;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.clearBtn:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.popup {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+  z-index: 50;
+  overflow: hidden;
+}
+
+.searchRow {
+  position: relative;
+  padding: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 6px 8px 6px 28px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.searchInput:focus {
+  border-color: #1A3F7A;
+}
+
+.list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background 0.1s;
+}
+
+.item:last-child {
+  border-bottom: none;
+}
+
+.item:hover {
+  background: #F0F4FA;
+}
+
+.itemSelected {
+  background: #F0F4FA;
+}
+
+.itemPrimary {
+  font-size: 0.92rem;
+  color: #111827;
+}
+
+.itemSecondary {
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.empty {
+  padding: 16px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 0.88rem;
+}

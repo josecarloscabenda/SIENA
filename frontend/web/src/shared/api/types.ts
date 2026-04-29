@@ -21,6 +21,11 @@ export interface UserResponse {
   papeis: string[];
   ultimo_login: string | null;
   created_at: string;
+  // Identidades derivadas (NULL se utilizador não tem o papel)
+  pessoa_id: string | null;
+  professor_id: string | null;
+  aluno_id: string | null;
+  encarregado_id: string | null;
 }
 
 export interface EscolaResponse {
@@ -450,6 +455,48 @@ export interface EscolaLookupItem {
   nome: string;
   provincia: string;
   municipio: string;
+}
+
+// ── Sprint 2 backend (Dev A) — relação por turma/professor/aluno ────────
+
+export interface TurmaAlunoItem {
+  aluno_id: string;
+  matricula_id: string;
+  alocacao_id: string;
+  nome: string;
+  n_processo: string;
+  data_alocacao: string;
+}
+
+export interface ProfessorTurmaItem {
+  turma_id: string;
+  nome: string;
+  classe: string;
+  turno: string;
+  ano_letivo_id: string;
+  ano_letivo_designacao: string;
+  is_regente: boolean;
+  leciona_disciplinas: number;
+}
+
+export interface ProfessorDisciplinaItem {
+  disciplina_id: string;
+  nome: string;
+  codigo: string;
+  curriculo_id: string;
+  turmas_count: number;
+}
+
+export interface AlunoEncarregadoItem {
+  encarregado_id: string;
+  pessoa_id: string;
+  nome: string;
+  bi_identificacao: string;
+  telefone: string | null;
+  email: string | null;
+  profissao: string | null;
+  tipo: string;
+  principal: boolean;
 }
 
 export interface FaltaResumoResponse {

@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { Plus, Search, LayoutGrid, Eye } from "lucide-react";
 import api from "@/shared/api/client";
+import EntitySelect from "@/shared/components/EntitySelect";
 import type {
   TurmaResponse,
   TurmaDetailResponse,
-  ProfessorResponse,
   AnoLetivoResponse,
   EscolaDetailResponse,
   DisciplinaResponse,
+  ProfessorLookupItem,
   PaginatedResponse,
 } from "@/shared/api/types";
 import { useAuth } from "@/shared/hooks/useAuth";
@@ -60,9 +61,7 @@ export default function Turmas() {
   const [error, setError] = useState("");
 
   /* Lookups */
-  const [professores, setProfessores] = useState<ProfessorResponse[]>([]);
   const [anosLetivos, setAnosLetivos] = useState<AnoLetivoResponse[]>([]);
-  const profMap = new Map(professores.map((p) => [p.id, p.pessoa.nome_completo]));
 
   /* Detail view */
   const [detailTurma, setDetailTurma] = useState<TurmaDetailResponse | null>(null);
@@ -85,10 +84,6 @@ export default function Turmas() {
 
   useEffect(() => {
     fetchTurmas();
-    api
-      .get<PaginatedResponse<ProfessorResponse>>("/professores?offset=0&limit=100")
-      .then(({ data }) => setProfessores(data.items))
-      .catch(() => {});
     /* Get anos letivos from escola detail */
     api
       .get<{ items: EscolaDetailResponse[] }>("/escolas?limit=1")
@@ -178,9 +173,7 @@ export default function Turmas() {
             <div className={s.field}>
               <label className={s.label}>Professor Regente</label>
               <div style={{ padding: "10px 0", fontWeight: 500 }}>
-                {detailTurma.professor_regente_nome ||
-                  profMap.get(detailTurma.professor_regente_id) ||
-                  "—"}
+                {detailTurma.professor_regente_nome || "—"}
               </div>
             </div>
             <div className={s.field}>
@@ -221,7 +214,7 @@ export default function Turmas() {
                       <td style={{ fontWeight: 600 }}>{DIA_LABELS[h.dia_semana] || h.dia_semana}</td>
                       <td>{trimTime(h.hora_inicio)} - {trimTime(h.hora_fim)}</td>
                       <td>{h.disciplina_nome || discMap.get(h.disciplina_id)?.nome || "—"}</td>
-                      <td>{h.professor_nome || profMap.get(h.professor_id) || "—"}</td>
+                      <td>{h.professor_nome || "—"}</td>
                     </tr>
                   ))}
               </tbody>
@@ -276,12 +269,15 @@ export default function Turmas() {
             </div>
             <div className={s.field}>
               <label className={s.label}>Professor Regente</label>
-              <select className={s.input} required value={form.professor_regente_id} onChange={(e) => setForm({ ...form, professor_regente_id: e.target.value })}>
-                <option value="">Selecionar...</option>
-                {professores.map((p) => (
-                  <option key={p.id} value={p.id}>{p.pessoa.nome_completo} ({p.especialidade})</option>
-                ))}
-              </select>
+              <EntitySelect<ProfessorLookupItem>
+                endpoint="/professores/lookup"
+                value={form.professor_regente_id}
+                onChange={(id) => setForm({ ...form, professor_regente_id: id })}
+                getLabel={(p) => p.nome}
+                getSecondary={(p) => `${p.codigo_funcional} · ${p.especialidade}`}
+                placeholder="Pesquise por nome..."
+                required
+              />
             </div>
             <div className={s.field}>
               <label className={s.label}>Sala</label>
@@ -355,9 +351,7 @@ export default function Turmas() {
                   <td>{turma.classe}</td>
                   <td>{turnoLabel[turma.turno] || turma.turno}</td>
                   <td>
-                    {turma.professor_regente_nome ||
-                      profMap.get(turma.professor_regente_id) ||
-                      "—"}
+                    {turma.professor_regente_nome || "—"}
                   </td>
                   <td>{turma.capacidade_max}</td>
                   <td>{turma.sala || "—"}</td>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Plus, ClipboardList, Check, X } from "lucide-react";
 import api from "@/shared/api/client";
+import EntitySelect from "@/shared/components/EntitySelect";
 import type {
   AlunoLookupItem,
   AnoLetivoLookupItem,
@@ -58,7 +59,6 @@ export default function Matriculas() {
   const [error, setError] = useState("");
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectMotivo, setRejectMotivo] = useState("");
-  const [alunos, setAlunos] = useState<AlunoLookupItem[]>([]);
   const [anosLetivos, setAnosLetivos] = useState<AnoLetivoLookupItem[]>([]);
 
   const canManage = hasRole("super_admin", "diretor", "secretaria");
@@ -85,15 +85,10 @@ export default function Matriculas() {
     setForm(emptyForm);
     setShowForm(true);
     setError("");
-    // Carregar lookups
-    Promise.all([
-      api.get<AlunoLookupItem[]>("/alunos/lookup?limit=500"),
-      api.get<AnoLetivoLookupItem[]>("/anos-letivos/lookup"),
-    ])
-      .then(([aRes, aLetRes]) => {
-        setAlunos(aRes.data);
-        setAnosLetivos(aLetRes.data);
-      })
+    // Pré-carrega anos lectivos (poucos itens, select simples)
+    api
+      .get<AnoLetivoLookupItem[]>("/anos-letivos/lookup")
+      .then(({ data }) => setAnosLetivos(data))
       .catch(() => {});
   };
 
@@ -154,19 +149,15 @@ export default function Matriculas() {
           <div className={s.formGrid}>
             <div className={s.field}>
               <label className={s.label}>Aluno</label>
-              <select
-                className={s.input}
-                required
+              <EntitySelect<AlunoLookupItem>
+                endpoint="/alunos/lookup"
                 value={form.aluno_id}
-                onChange={(e) => setForm({ ...form, aluno_id: e.target.value })}
-              >
-                <option value="">Seleccione um aluno...</option>
-                {alunos.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.nome} — Nº {a.n_processo}
-                  </option>
-                ))}
-              </select>
+                onChange={(id) => setForm({ ...form, aluno_id: id })}
+                getLabel={(a) => a.nome}
+                getSecondary={(a) => `Nº processo ${a.n_processo}`}
+                placeholder="Pesquise por nome..."
+                required
+              />
             </div>
             <div className={s.field}>
               <label className={s.label}>Ano Lectivo</label>

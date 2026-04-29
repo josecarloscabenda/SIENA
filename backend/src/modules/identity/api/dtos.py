@@ -59,6 +59,11 @@ class UserResponse(BaseModel):
     papeis: list[str]
     ultimo_login: datetime | None
     created_at: datetime
+    # Identidades derivadas via Pessoa (NULL se utilizador não tem o papel)
+    pessoa_id: uuid.UUID | None = None
+    professor_id: uuid.UUID | None = None
+    aluno_id: uuid.UUID | None = None
+    encarregado_id: uuid.UUID | None = None
 
     model_config = {"from_attributes": True}
 

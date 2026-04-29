@@ -3,10 +3,12 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.common.auth.middleware import CurrentUser, get_current_user
 from src.common.auth.rbac import require_role
 from src.common.database.session import get_db
+from src.modules.directory.infrastructure.models import Aluno, Encarregado, Professor
 from src.modules.identity.api.dtos import (
     CreateUserRequest,
     LoginRequest,
@@ -36,7 +38,39 @@ def _user_to_response(user) -> UserResponse:  # noqa: ANN001
         papeis=[up.papel.nome for up in user.papeis if up.ativo],
         ultimo_login=user.ultimo_login,
         created_at=user.created_at,
+        pessoa_id=user.pessoa_id,
     )
+
+
+async def _resolve_identities(user, db: AsyncSession) -> dict:  # noqa: ANN001
+    """Resolve professor_id / aluno_id / encarregado_id a partir de Utilizador.pessoa_id."""
+    if user.pessoa_id is None:
+        return {}
+    tenant_id = user.tenant_id
+    pessoa_id = user.pessoa_id
+    professor_q = select(Professor.id).where(
+        Professor.pessoa_id == pessoa_id,
+        Professor.tenant_id == tenant_id,
+        Professor.deleted_at.is_(None),
+    )
+    aluno_q = select(Aluno.id).where(
+        Aluno.pessoa_id == pessoa_id,
+        Aluno.tenant_id == tenant_id,
+        Aluno.deleted_at.is_(None),
+    )
+    encarregado_q = select(Encarregado.id).where(
+        Encarregado.pessoa_id == pessoa_id,
+        Encarregado.tenant_id == tenant_id,
+        Encarregado.deleted_at.is_(None),
+    )
+    professor_id = (await db.execute(professor_q)).scalar_one_or_none()
+    aluno_id = (await db.execute(aluno_q)).scalar_one_or_none()
+    encarregado_id = (await db.execute(encarregado_q)).scalar_one_or_none()
+    return {
+        "professor_id": professor_id,
+        "aluno_id": aluno_id,
+        "encarregado_id": encarregado_id,
+    }
 
 
 # ============================================================
@@ -97,12 +131,14 @@ async def me(
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
-    """Get the currently authenticated user's profile."""
+    """Get the currently authenticated user's profile (com identidades derivadas)."""
     svc = UserService(db)
     user = await svc.get_user(current_user.user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Utilizador não encontrado")
-    return _user_to_response(user)
+    response = _user_to_response(user)
+    identities = await _resolve_identities(user, db)
+    return response.model_copy(update=identities)
 
 
 # ============================================================

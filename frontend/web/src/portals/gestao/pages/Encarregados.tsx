@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { Plus, Search, UserCheck } from "lucide-react";
 import api from "@/shared/api/client";
-import type { EncarregadoResponse, PaginatedResponse } from "@/shared/api/types";
+import EntitySelect from "@/shared/components/EntitySelect";
+import type {
+  AlunoLookupItem,
+  EncarregadoResponse,
+  PaginatedResponse,
+} from "@/shared/api/types";
 import { useAuth } from "@/shared/hooks/useAuth";
 import s from "@/shared/styles/common.module.css";
 
@@ -15,6 +20,10 @@ interface EncarregadoForm {
   email: string;
   profissao: string;
   escolaridade: string;
+  // Vínculo opcional ao criar
+  aluno_id: string;
+  tipo: "pai" | "mae" | "tutor" | "outro";
+  principal: boolean;
 }
 
 const emptyForm: EncarregadoForm = {
@@ -27,6 +36,9 @@ const emptyForm: EncarregadoForm = {
   email: "",
   profissao: "",
   escolaridade: "",
+  aluno_id: "",
+  tipo: "tutor",
+  principal: false,
 };
 
 export default function Encarregados() {
@@ -71,7 +83,29 @@ export default function Encarregados() {
     setSaving(true);
     setError("");
     try {
-      await api.post("/encarregados", form);
+      const { aluno_id, tipo, principal, ...payload } = form;
+      const { data: created } = await api.post<EncarregadoResponse>(
+        "/encarregados",
+        payload,
+      );
+      // Se foi escolhido um aluno, criar vínculo
+      if (aluno_id) {
+        try {
+          await api.post(`/alunos/${aluno_id}/vinculos`, {
+            encarregado_id: created.id,
+            tipo,
+            principal,
+          });
+        } catch (vErr: any) {
+          setError(
+            "Encarregado criado, mas não foi possível vincular ao aluno: " +
+              (vErr.response?.data?.detail ?? "erro desconhecido"),
+          );
+          setSaving(false);
+          fetchEncarregados();
+          return;
+        }
+      }
       setShowForm(false);
       fetchEncarregados();
     } catch (err: any) {
@@ -141,6 +175,53 @@ export default function Encarregados() {
               <input className={s.input} value={form.escolaridade} onChange={(e) => setForm({ ...form, escolaridade: e.target.value })} />
             </div>
           </div>
+
+          <h3 className={s.sectionTitle} style={{ marginTop: 24 }}>
+            Vincular a aluno (opcional)
+          </h3>
+          <p className={s.muted} style={{ marginBottom: 12 }}>
+            Pode associar já o encarregado a um aluno. Útil ao registar pais/tutores.
+          </p>
+          <div className={s.formGrid}>
+            <div className={s.field}>
+              <label className={s.label}>Aluno</label>
+              <EntitySelect<AlunoLookupItem>
+                endpoint="/alunos/lookup"
+                value={form.aluno_id}
+                onChange={(id) => setForm({ ...form, aluno_id: id })}
+                getLabel={(a) => a.nome}
+                getSecondary={(a) => `Nº processo ${a.n_processo}`}
+                placeholder="(Sem vínculo) ou pesquise um aluno..."
+              />
+            </div>
+            <div className={s.field}>
+              <label className={s.label}>Relação</label>
+              <select
+                className={s.input}
+                value={form.tipo}
+                onChange={(e) => setForm({ ...form, tipo: e.target.value as EncarregadoForm["tipo"] })}
+                disabled={!form.aluno_id}
+              >
+                <option value="pai">Pai</option>
+                <option value="mae">Mãe</option>
+                <option value="tutor">Tutor</option>
+                <option value="outro">Outro</option>
+              </select>
+            </div>
+            <div className={s.field}>
+              <label className={s.label}>
+                <input
+                  type="checkbox"
+                  checked={form.principal}
+                  onChange={(e) => setForm({ ...form, principal: e.target.checked })}
+                  disabled={!form.aluno_id}
+                  style={{ marginRight: 8 }}
+                />
+                Encarregado principal
+              </label>
+            </div>
+          </div>
+
           <div className={s.formActions}>
             <button type="button" className={s.cancelBtn} onClick={() => setShowForm(false)}>Cancelar</button>
             <button type="submit" className={s.primaryBtn} disabled={saving}>{saving ? "A guardar..." : "Guardar"}</button>
