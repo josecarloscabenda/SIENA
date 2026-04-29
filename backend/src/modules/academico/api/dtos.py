@@ -223,3 +223,39 @@ class CurriculoLookupItem(BaseModel):
     nome: str
     nivel: str
     classe: str
+
+
+# ──────────────────────────────────────────────
+# Turma — alunos alocados
+# ──────────────────────────────────────────────
+
+class TurmaAlunoItem(BaseModel):
+    aluno_id: uuid.UUID
+    matricula_id: uuid.UUID
+    alocacao_id: uuid.UUID
+    nome: str
+    n_processo: str
+    data_alocacao: date
+
+
+# ──────────────────────────────────────────────
+# Professor — turmas e disciplinas que lecciona
+# ──────────────────────────────────────────────
+
+class ProfessorTurmaItem(BaseModel):
+    turma_id: uuid.UUID
+    nome: str
+    classe: str
+    turno: str
+    ano_letivo_id: uuid.UUID
+    ano_letivo_designacao: str
+    is_regente: bool
+    leciona_disciplinas: int
+
+
+class ProfessorDisciplinaItem(BaseModel):
+    disciplina_id: uuid.UUID
+    nome: str
+    codigo: str
+    curriculo_id: uuid.UUID
+    turmas_count: int

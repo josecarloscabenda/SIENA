@@ -3,7 +3,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import distinct, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.common.auth.middleware import CurrentUser, get_current_user
 from src.common.auth.rbac import require_role
@@ -24,6 +24,9 @@ from src.modules.academico.api.dtos import (
     DisciplinaLookupItem,
     DisciplinaResponse,
     HorarioAulaResponse,
+    ProfessorDisciplinaItem,
+    ProfessorTurmaItem,
+    TurmaAlunoItem,
     TurmaDetailResponse,
     TurmaListResponse,
     TurmaLookupItem,
@@ -41,7 +44,15 @@ from src.modules.academico.application.services import (
     NotFoundError,
     TurmaService,
 )
-from src.modules.academico.infrastructure.models import Curriculo, Disciplina, Turma
+from src.modules.academico.infrastructure.models import (
+    Curriculo,
+    Disciplina,
+    HorarioAula,
+    Turma,
+)
+from src.modules.directory.infrastructure.models import Aluno, Pessoa
+from src.modules.enrollment.infrastructure.models import AlocacaoTurma, Matricula
+from src.modules.escolas.infrastructure.models import AnoLetivo
 
 router = APIRouter()
 
@@ -330,6 +341,68 @@ async def list_horarios_turma(
     return [HorarioAulaResponse.model_validate(h) for h in horarios]
 
 
+@router.get("/turmas/{turma_id}/alunos", response_model=list[TurmaAlunoItem])
+async def list_alunos_turma(
+    turma_id: uuid.UUID,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    nome: str | None = Query(default=None, description="Filtra por nome (ILIKE)"),
+    limit: int = Query(default=200, ge=1, le=500),
+) -> list[TurmaAlunoItem]:
+    """Lista alunos alocados a uma turma com nome e nº de processo."""
+    turma = await db.execute(
+        select(Turma.id).where(
+            Turma.id == turma_id,
+            Turma.tenant_id == current_user.tenant_id,
+            Turma.deleted_at.is_(None),
+        )
+    )
+    if turma.scalar_one_or_none() is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turma não encontrada")
+
+    stmt = (
+        select(
+            Aluno.id.label("aluno_id"),
+            Matricula.id.label("matricula_id"),
+            AlocacaoTurma.id.label("alocacao_id"),
+            Pessoa.nome_completo,
+            Aluno.n_processo,
+            AlocacaoTurma.data_alocacao,
+        )
+        .join(Matricula, Matricula.id == AlocacaoTurma.matricula_id)
+        .join(Aluno, Aluno.id == Matricula.aluno_id)
+        .join(Pessoa, Pessoa.id == Aluno.pessoa_id)
+        .where(
+            AlocacaoTurma.turma_id == turma_id,
+            AlocacaoTurma.tenant_id == current_user.tenant_id,
+            AlocacaoTurma.deleted_at.is_(None),
+            Matricula.tenant_id == current_user.tenant_id,
+            Matricula.deleted_at.is_(None),
+            Aluno.tenant_id == current_user.tenant_id,
+            Aluno.deleted_at.is_(None),
+            Aluno.status == "ativo",
+            Pessoa.tenant_id == current_user.tenant_id,
+            Pessoa.deleted_at.is_(None),
+        )
+    )
+    if nome:
+        stmt = stmt.where(Pessoa.nome_completo.ilike(f"%{nome}%"))
+    stmt = stmt.order_by(Pessoa.nome_completo).limit(limit)
+
+    result = await db.execute(stmt)
+    return [
+        TurmaAlunoItem(
+            aluno_id=r.aluno_id,
+            matricula_id=r.matricula_id,
+            alocacao_id=r.alocacao_id,
+            nome=r.nome_completo,
+            n_processo=r.n_processo,
+            data_alocacao=r.data_alocacao,
+        )
+        for r in result.all()
+    ]
+
+
 @router.get(
     "/professores/{professor_id}/horarios",
     response_model=list[HorarioAulaResponse],
@@ -342,6 +415,127 @@ async def list_horarios_professor(
     svc = HorarioService(db)
     horarios = await svc.list_horarios_professor(professor_id, current_user.tenant_id)
     return [HorarioAulaResponse.model_validate(h) for h in horarios]
+
+
+@router.get(
+    "/professores/{professor_id}/turmas",
+    response_model=list[ProfessorTurmaItem],
+)
+async def list_turmas_professor(
+    professor_id: uuid.UUID,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    ano_letivo_id: uuid.UUID | None = Query(default=None),
+) -> list[ProfessorTurmaItem]:
+    """Turmas onde o professor é regente OU lecciona alguma disciplina (via horário)."""
+    leciona_subq = (
+        select(HorarioAula.turma_id)
+        .where(
+            HorarioAula.professor_id == professor_id,
+            HorarioAula.tenant_id == current_user.tenant_id,
+            HorarioAula.deleted_at.is_(None),
+        )
+        .distinct()
+        .subquery()
+    )
+
+    n_disciplinas = (
+        select(func.count(distinct(HorarioAula.disciplina_id)))
+        .where(
+            HorarioAula.turma_id == Turma.id,
+            HorarioAula.professor_id == professor_id,
+            HorarioAula.tenant_id == current_user.tenant_id,
+            HorarioAula.deleted_at.is_(None),
+        )
+        .correlate(Turma)
+        .scalar_subquery()
+    )
+
+    stmt = (
+        select(
+            Turma.id,
+            Turma.nome,
+            Turma.classe,
+            Turma.turno,
+            Turma.ano_letivo_id,
+            Turma.professor_regente_id,
+            AnoLetivo.designacao.label("ano_letivo_designacao"),
+            n_disciplinas.label("leciona_disciplinas"),
+        )
+        .join(AnoLetivo, AnoLetivo.id == Turma.ano_letivo_id)
+        .where(
+            Turma.tenant_id == current_user.tenant_id,
+            Turma.deleted_at.is_(None),
+            or_(
+                Turma.professor_regente_id == professor_id,
+                Turma.id.in_(select(leciona_subq.c.turma_id)),
+            ),
+        )
+    )
+    if ano_letivo_id:
+        stmt = stmt.where(Turma.ano_letivo_id == ano_letivo_id)
+    stmt = stmt.order_by(Turma.classe, Turma.nome)
+
+    result = await db.execute(stmt)
+    return [
+        ProfessorTurmaItem(
+            turma_id=r.id,
+            nome=r.nome,
+            classe=r.classe,
+            turno=r.turno,
+            ano_letivo_id=r.ano_letivo_id,
+            ano_letivo_designacao=r.ano_letivo_designacao,
+            is_regente=(r.professor_regente_id == professor_id),
+            leciona_disciplinas=r.leciona_disciplinas or 0,
+        )
+        for r in result.all()
+    ]
+
+
+@router.get(
+    "/professores/{professor_id}/disciplinas",
+    response_model=list[ProfessorDisciplinaItem],
+)
+async def list_disciplinas_professor(
+    professor_id: uuid.UUID,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    turma_id: uuid.UUID | None = Query(default=None, description="Filtra disciplinas dadas nesta turma"),
+) -> list[ProfessorDisciplinaItem]:
+    """Disciplinas que o professor lecciona (via HorarioAula). Opcionalmente filtrada por turma."""
+    stmt = (
+        select(
+            Disciplina.id,
+            Disciplina.nome,
+            Disciplina.codigo,
+            Disciplina.curriculo_id,
+            func.count(distinct(HorarioAula.turma_id)).label("turmas_count"),
+        )
+        .join(HorarioAula, HorarioAula.disciplina_id == Disciplina.id)
+        .where(
+            HorarioAula.professor_id == professor_id,
+            HorarioAula.tenant_id == current_user.tenant_id,
+            HorarioAula.deleted_at.is_(None),
+            Disciplina.tenant_id == current_user.tenant_id,
+            Disciplina.deleted_at.is_(None),
+        )
+        .group_by(Disciplina.id, Disciplina.nome, Disciplina.codigo, Disciplina.curriculo_id)
+        .order_by(Disciplina.nome)
+    )
+    if turma_id:
+        stmt = stmt.where(HorarioAula.turma_id == turma_id)
+
+    result = await db.execute(stmt)
+    return [
+        ProfessorDisciplinaItem(
+            disciplina_id=r.id,
+            nome=r.nome,
+            codigo=r.codigo,
+            curriculo_id=r.curriculo_id,
+            turmas_count=r.turmas_count,
+        )
+        for r in result.all()
+    ]
 
 
 # ── Diário de Classe ────────────────────────────
